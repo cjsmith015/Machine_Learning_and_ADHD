@@ -1,6 +1,6 @@
 from sklearn.preprocessing import Imputer
 from sklearn.linear_model import LinearRegression
-from sklearn.cross_validation import train_test_split
+from sklearn.model_selection import train_test_split
 import numpy as np
 
 class MiceImputer(object):
@@ -52,10 +52,10 @@ class MiceImputer(object):
 		# Replace values in X with their predictions
 		predict_indices = np.where(mask==False)[0]
 		np.put(X, predict_indicies, np.take(y, predict_indices))
-	
+
 		# Return model and scores
 		return (model, scores)
-	
+
 	def transform(self, X, model_class=LinearRegression, iterations=10):
 		X = np.matrix(X)
 		mask = _get_mask(X, self.missing_values)
@@ -65,6 +65,6 @@ class MiceImputer(object):
 		for i in range(iterations):
 			for c in range(len(X.T) - 1):
 				specs[i][c] = self._process(X, c, model_class)
-		
+
 		# Return X matrix with imputed values
 		return (X, specs)
