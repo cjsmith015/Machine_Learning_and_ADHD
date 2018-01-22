@@ -4,7 +4,6 @@ Data not available on this github repo because of confidentiality."""
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
-from fancyimpute import MICE
 
 def write_csvs(df):
     """Write train and holdout data to csvs"""
