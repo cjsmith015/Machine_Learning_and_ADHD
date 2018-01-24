@@ -87,8 +87,14 @@ def cv(X, y, base_estimator, n_folds, metrics, random_state=56):
             print(metric(y_cv_train, y_hat_train))
             print('i did it')
             # Calculate the error metrics
-            train_cv_metric[idx][metric_idx] = np.mean(metric(y_cv_train, y_hat_train))
-            test_cv_metric[idx][metric_idx] = np.mean(metric(y_cv_test, y_hat_test))
+            if metric == log_loss:
+                y_hat_train = estimator.predict_proba(X_cv_train_final)
+                y_hat_test = estimator.predict_proba(X_cv_test_final)
+                train_cv_metric[idx][metric_idx] = np.mean(metric(y_cv_train, y_hat_train))
+                test_cv_metric[idx][metric_idx] = np.mean(metric(y_cv_test, y_hat_test))
+            else:
+                train_cv_metric[idx][metric_idx] = np.mean(metric(y_cv_train, y_hat_train))
+                test_cv_metric[idx][metric_idx] = np.mean(metric(y_cv_test, y_hat_test))
 
     return train_cv_metric, test_cv_metric
 

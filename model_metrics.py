@@ -11,8 +11,7 @@ def run_classifiers(X_train, y_all,
                     name_of_classifiers = ['LogReg', 'RandomForest', 'GradBoost'],
                     list_of_metrics = [accuracy_score, log_loss],
                     name_of_metrics = ['acc', 'logloss'],
-                    n_folds=10,
-                    class_label_dict = {3:1, 1:0}):
+                    n_folds=10):
     y_DX = y_all['DX']
     y_DXSUB = y_all['DXSUB']
 
