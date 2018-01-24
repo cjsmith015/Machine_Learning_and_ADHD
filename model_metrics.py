@@ -5,20 +5,17 @@ from data_clean import *
 import pandas as pd
 import numpy as np
 
-def run_classifiers(data,
+def run_classifiers(X_train, y_all,
                     list_of_classifiers = [LogisticRegression(), RandomForestClassifier(),
                     GradientBoostingClassifier()],
                     name_of_classifiers = ['LogReg', 'RandomForest', 'GradBoost'],
                     list_of_metrics = [mean_squared_error, accuracy_score],
                     name_of_metrics = ['mse', 'acc'],
                     n_folds=10):
-    X_train_DX = data.drop(columns=['DX','DXSUB'])
-    X_train_DXSUB = data.drop(columns=['DX','DXSUB'])
+    y_DX = y_all['DX']
+    y_DXSUB = y_all['DXSUB']
 
-    y_train_DX = data['DX']
-    y_train_DXSUB = data['DXSUB']
-
-    list_of_data = [(X_train_DX, y_train_DX), (X_train_DXSUB, y_train_DXSUB)]
+    list_of_data = [(X_train, y_DX), (X_train, y_DXSUB)]
     name_of_data = ['DX', 'DXSUB']
 
     metrics_df = pd.DataFrame(data=None,
@@ -32,6 +29,9 @@ def run_classifiers(data,
                 train_metric, test_metric = cv(X.values, y.values,
                                                clf, n_folds=10,
                                                metric=metric)
+
+                col_train_name = data_name + '_' + metric_name + '_train'
+                col_test_name = data_name + '_' + metric_name + '_test'
 
                 metrics_df[col_train_name].loc[clf_name] = np.mean(train_metric)
                 metrics_df[col_test_name].loc[clf_name] = np.mean(test_metric)
