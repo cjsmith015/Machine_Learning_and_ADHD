@@ -28,5 +28,4 @@ class Model(object):
         self.clf.fit(X, y)
 
     def _impute_data(X):
-        solver =
-            X_impute =
+        return self.solver.complete(X)
