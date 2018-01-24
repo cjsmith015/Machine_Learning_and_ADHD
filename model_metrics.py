@@ -9,9 +9,10 @@ def run_classifiers(X_train, y_all,
                     list_of_classifiers = [LogisticRegression(), RandomForestClassifier(),
                     GradientBoostingClassifier()],
                     name_of_classifiers = ['LogReg', 'RandomForest', 'GradBoost'],
-                    list_of_metrics = [accuracy_score, roc_auc_score, log_loss],
-                    name_of_metrics = ['acc', 'auc', 'logloss'],
-                    n_folds=10):
+                    list_of_metrics = [accuracy_score, log_loss],
+                    name_of_metrics = ['acc', 'logloss'],
+                    n_folds=10,
+                    class_label_dict = {3:1, 1:0}):
     y_DX = y_all['DX']
     y_DXSUB = y_all['DXSUB']
 
