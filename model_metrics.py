@@ -1,10 +1,13 @@
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import cross_validate
+from sklearn.preprocessing import LabelBinarizer
+from sklearn.metrics import roc_auc_score
 
 def get_metrics(X, y, clf_list, clf_names,
                     scoring, metric_df_cols,
-                    n_folds, return_train_score=True):
+                    n_folds, return_train_score=True,
+                    multiclass=False):
     """Runs cross validation to obtain error metrics for several classifiers.
     Outputs a formatted dataframe.
 
@@ -18,13 +21,14 @@ def get_metrics(X, y, clf_list, clf_names,
     - metric_df_cols: list of strings for desired columns of output DataFrame
     - n_folds: int, number of folds for k-fold cross validation
     - return_train_score: bool, returns training score on cv
+    - multiclass: bool, whether target has multiple classes
 
     OUTPUTS
     -------
     """
     clf_metrics = _run_clfs(clf_list, clf_names,
                             X, y, scoring,
-                            n_folds, return_train_score)
+                            n_folds, return_train_score, multiclass)
 
     clf_metrics_mean = _mean_metrics(clf_metrics)
 
@@ -32,9 +36,19 @@ def get_metrics(X, y, clf_list, clf_names,
 
     return _fill_df(metric_df, clf_metrics_mean, clf_names, metric_df_cols)
 
+def multiclass_roc_auc_score(truth, pred, average=None):
+    """Returns multiclass roc auc score"""
+    lb = LabelBinarizer()
+    lb.fit(truth)
+
+    truth = lb.transform(truth)
+    pred = lb.transform(pred)
+
+    return list(roc_auc_score(truth, pred, average=average))
+
 def _run_clfs(clf_list, clf_names,
                 X, y, scoring,
-                n_folds, return_train_score):
+                n_folds, return_train_score, multiclass):
     """Runs cross validation on classifiers"""
     clf_dict = {}
     for clf, name in zip(clf_list, clf_names):
