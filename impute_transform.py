@@ -14,3 +14,7 @@ class ImputeTransform(object):
             return self.solver.complete(X)
         else:
             return X
+
+    def get_params(self, deep=True):
+        params = {'strategy': self.solver}
+        return params
