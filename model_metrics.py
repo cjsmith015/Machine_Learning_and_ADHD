@@ -89,26 +89,55 @@ def _fill_df(df, clf_dict, clf_names, cols):
     return df
 
 if __name__ == '__main__':
-    pickle_name = sys.argv[1]
+    csv_name = sys.argv[1]
 
     train_data = pd.read_csv('data/train_data.csv')
-    train_data_small = train_data.sample(n=200)
-    X = train_data_small.drop(columns=['DX','DXSUB'])
-    y = train_data_small['DX'].map({3:1, 1:0})
+    #train_data_small = train_data.sample(n=200)
+    X = train_data.drop(columns=['DX','DXSUB'])
+    y = train_data['DX'].map({3:1, 1:0})
+
+   # X_TMCQ = train_data[['Y1_P_TMCQ_ACTIVCONT', 'Y1_P_TMCQ_ACTIVITY', 'Y1_P_TMCQ_AFFIL',
+   #    'Y1_P_TMCQ_ANGER', 'Y1_P_TMCQ_FEAR', 'Y1_P_TMCQ_HIP',
+   #    'Y1_P_TMCQ_IMPULS', 'Y1_P_TMCQ_INHIBIT', 'Y1_P_TMCQ_SAD',
+   #    'Y1_P_TMCQ_SHY', 'Y1_P_TMCQ_SOOTHE', 'Y1_P_TMCQ_ASSERT',
+   #    'Y1_P_TMCQ_ATTFOCUS', 'Y1_P_TMCQ_LIP', 'Y1_P_TMCQ_PERCEPT',
+   #    'Y1_P_TMCQ_DISCOMF', 'Y1_P_TMCQ_OPENNESS', 'Y1_P_TMCQ_SURGENCY',
+   #    'Y1_P_TMCQ_EFFCONT', 'Y1_P_TMCQ_NEGAFFECT']]
+
+    #X_TMCQ_nonull = X_TMCQ[X_TMCQ.isnull().sum(axis=1) == 0]
+    #y_TMCQ_nonull = y[X_TMCQ.isnull().sum(axis=1) == 0]
+
+    X_neuro = train_data[['STOP_SSRTAVE_Y1', 'DPRIME1_Y1', 'DPRIME2_Y1', 'SSBK_NUMCOMPLETE_Y1',
+        'SSFD_NUMCOMPLETE_Y1', 'V_Y1', 'Y1_CLWRD_COND1', 'Y1_CLWRD_COND2',
+        'Y1_DIGITS_BKWD_RS', 'Y1_DIGITS_FRWD_RS', 'Y1_TRAILS_COND2',
+        'Y1_TRAILS_COND3', 'CW_RES', 'TR_RES', 'Y1_TAP_SD_TOT_CLOCK']]
+    X_neuro_nonull = X_neuro[X_neuro.isnull().sum(axis=1) != X_neuro.shape[1]]
+    y_neuro_nonull = y[X_neuro.isnull().sum(axis=1) != X_neuro.shape[1]]
 
     # make pipeline
     log_reg_clf = make_pipeline(ImputeTransform(strategy=MatrixFactorization()),
                         LogisticRegression(random_state=56))
-
+    
     rf_clf = make_pipeline(ImputeTransform(strategy=MatrixFactorization()),
                            RandomForestClassifier(n_jobs=-1, random_state=56))
-
+    
     gb_clf = make_pipeline(ImputeTransform(strategy=MatrixFactorization()),
                            GradientBoostingClassifier(random_state=56))
-
+    
     xgb_clf = make_pipeline(ImputeTransform(strategy=MatrixFactorization()),
                             XGBClassifier(max_depth=3, learning_rate=0.1,
                             random_state=56, n_jobs=-1))
+
+    # Don't need imputation for TMCQ because I removed NaNs
+    #log_reg_clf = LogisticRegression(random_state=56)
+#
+ #   rf_clf = RandomForestClassifier(n_jobs=-1, random_state=56)
+#
+ #   gb_clf = GradientBoostingClassifier(random_state=56)
+#
+ #   xgb_clf = XGBClassifier(max_depth=3, learning_rate=0.1,
+  ##                      random_state=56)
+
 
     # create lists
     scoring_list = ['accuracy', 'roc_auc', 'neg_log_loss']
@@ -119,10 +148,10 @@ if __name__ == '__main__':
     metrics_of_interest = ['fit_time', 'score_time', 'test_accuracy',
                        'test_neg_log_loss', 'test_roc_auc']
 
-    metric_dx_df = model_metrics.get_metrics(X, y,
+    metric_dx_df = get_metrics(X_neuro_nonull, y_neuro_nonull,
                                 classifier_list, classifier_name,
                                 scoring_list, metrics_of_interest,
-                                n_folds=2)
+                                n_folds=5)
+    
+    metric_dx_df.to_csv(csv_name)
 
-    with open(pickle_name, 'wb') as f:
-        pickle.dump(metric_dx_df, f)
