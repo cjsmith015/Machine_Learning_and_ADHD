@@ -13,6 +13,8 @@ from xgboost import XGBClassifier
 
 from fancyimpute import MatrixFactorization
 
+from impute_transform import ImputeTransform
+
 def get_metrics(X, y, clf_list, clf_names,
                     scoring, metric_df_cols,
                     n_folds, return_train_score=True,
