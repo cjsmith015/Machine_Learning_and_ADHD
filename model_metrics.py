@@ -1,8 +1,17 @@
 import pandas as pd
 import numpy as np
+import pickle, sys
+
 from sklearn.model_selection import cross_validate
 from sklearn.preprocessing import LabelBinarizer
 from sklearn.metrics import roc_auc_score
+from sklearn.pipeline import make_pipeline
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+
+from xgboost import XGBClassifier
+
+from fancyimpute import MatrixFactorization
 
 def get_metrics(X, y, clf_list, clf_names,
                     scoring, metric_df_cols,
@@ -77,41 +86,41 @@ def _fill_df(df, clf_dict, clf_names, cols):
             df[col].loc[clf] = clf_dict[clf][col]
     return df
 
-#
-# def run_classifiers(X_train, y_all,
-#                     list_of_classifiers = [LogisticRegression(), RandomForestClassifier(),
-#                     GradientBoostingClassifier()],
-#                     name_of_classifiers = ['LogReg', 'RandomForest', 'GradBoost'],
-#                     list_of_metrics = [accuracy_score, log_loss],
-#                     name_of_metrics = ['acc', 'logloss'],
-#                     n_folds=10):
-#     y_DX = y_all['DX']
-#     y_DXSUB = y_all['DXSUB']
-#
-#     list_of_data = [(X_train, y_DX), (X_train, y_DXSUB)]
-#     name_of_data = ['DX', 'DXSUB']
-#
-#     column_list = []
-#     for data in name_of_data:
-#         for metric in name_of_metrics:
-#             column_list.append(data + '_' + metric + '_train')
-#             column_list.append(data + '_' + metric + '_test')
-#
-#     metrics_df = pd.DataFrame(data=None,
-#                               columns=column_list,
-#                               index=name_of_classifiers)
-#
-#     for (X, y), data_name in zip(list_of_data, name_of_data):
-#         for clf, clf_name in zip(list_of_classifiers, name_of_classifiers):
-#             train_cv_metric, test_cv_metric = cv(X.values, y.values,
-#                                            clf, n_folds=n_folds,
-#                                            metrics=list_of_metrics)
-#             train_metric = np.mean(train_cv_metric, axis=0)
-#             test_metric = np.mean(test_cv_metric, axis=0)
-#             for idx, metric in enumerate(name_of_metrics):
-#                 col_train = data_name + '_' + metric + '_train'
-#                 col_test = data_name + '_' + metric + '_test'
-#                 metrics_df[col_train].loc[clf_name] = train_metric[idx]
-#                 metrics_df[col_test].loc[clf_name] = test_metric[idx]
-#
-#     return metrics_df
+if __name__ == '__main__':
+    pickle_name = sys.argv[1]
+
+    train_data = pd.read_csv('data/train_data.csv')
+    train_data_small = train_data.sample(n=200)
+    X = train_data_small.drop(columns=['DX','DXSUB'])
+    y = train_data_small['DX'].map({3:1, 1:0})
+
+    # make pipeline
+    log_reg_clf = make_pipeline(ImputeTransform(strategy=MatrixFactorization()),
+                        LogisticRegression(random_state=56))
+
+    rf_clf = make_pipeline(ImputeTransform(strategy=MatrixFactorization()),
+                           RandomForestClassifier(n_jobs=-1, random_state=56))
+
+    gb_clf = make_pipeline(ImputeTransform(strategy=MatrixFactorization()),
+                           GradientBoostingClassifier(random_state=56))
+
+    xgb_clf = make_pipeline(ImputeTransform(strategy=MatrixFactorization()),
+                            XGBClassifier(max_depth=3, learning_rate=0.1,
+                            random_state=56, n_jobs=-1))
+
+    # create lists
+    scoring_list = ['accuracy', 'roc_auc', 'neg_log_loss']
+
+    classifier_list = [log_reg_clf, rf_clf, gb_clf, xgb_clf]
+    classifier_name = ['LogReg', 'RandomForest', 'GradientBoosting', 'XGB']
+
+    metrics_of_interest = ['fit_time', 'score_time', 'test_accuracy',
+                       'test_neg_log_loss', 'test_roc_auc']
+
+    metric_dx_df = model_metrics.get_metrics(X, y,
+                                classifier_list, classifier_name,
+                                scoring_list, metrics_of_interest,
+                                n_folds=2)
+
+    with open(pickle_name, 'wb') as f:
+        pickle.dump(metric_dx_df, f)
