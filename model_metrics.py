@@ -99,10 +99,10 @@ if __name__ == '__main__':
     csv_name = sys.argv[1]
 
     train_data = pd.read_csv('data/train_data.csv')
-    train_data_small = train_data.sample(n=400)
-    X = train_data_small.drop(columns=['DX','DXSUB'])
-    y = train_data_small['DX'].map({3:1, 1:0})
-    ysub = train_data_small['DXSUB']
+    #train_data_small = train_data.sample(n=400)
+    X = train_data.drop(columns=['DX','DXSUB'])
+    y = train_data['DX'].map({3:1, 1:0})
+    ysub = train_data['DXSUB']
 
    # X_TMCQ = train_data[['Y1_P_TMCQ_ACTIVCONT', 'Y1_P_TMCQ_ACTIVITY', 'Y1_P_TMCQ_AFFIL',
    #    'Y1_P_TMCQ_ANGER', 'Y1_P_TMCQ_FEAR', 'Y1_P_TMCQ_HIP',
@@ -123,30 +123,18 @@ if __name__ == '__main__':
    #  y_neuro_nonull = y[X_neuro.isnull().sum(axis=1) != X_neuro.shape[1]]
 
     # make pipeline
-    log_reg_clf = make_pipeline(ImputeTransform(strategy=SimpleFill()),
+    log_reg_clf = make_pipeline(ImputeTransform(strategy=MatrixFactorization()),
                         LogisticRegression(random_state=56))
 
-    rf_clf = make_pipeline(ImputeTransform(strategy=SimpleFill()),
+    rf_clf = make_pipeline(ImputeTransform(strategy=MatrixFactorization()),
                            RandomForestClassifier(n_jobs=-1, random_state=56))
 
-    gb_clf = make_pipeline(ImputeTransform(strategy=SimpleFill()),
+    gb_clf = make_pipeline(ImputeTransform(strategy=MatrixFactorization()),
                            GradientBoostingClassifier(random_state=56))
 
-    xgb_clf = make_pipeline(ImputeTransform(strategy=SimpleFill()),
+    xgb_clf = make_pipeline(ImputeTransform(strategy=MatrixFactorization()),
                             XGBClassifier(max_depth=3, learning_rate=0.1,
                             random_state=56, n_jobs=-1))
-    # log_reg_clf = make_pipeline(ImputeTransform(strategy=MatrixFactorization()),
-    #                     LogisticRegression(random_state=56))
-    #
-    # rf_clf = make_pipeline(ImputeTransform(strategy=MatrixFactorization()),
-    #                        RandomForestClassifier(n_jobs=-1, random_state=56))
-    #
-    # gb_clf = make_pipeline(ImputeTransform(strategy=MatrixFactorization()),
-    #                        GradientBoostingClassifier(random_state=56))
-    #
-    # xgb_clf = make_pipeline(ImputeTransform(strategy=MatrixFactorization()),
-    #                         XGBClassifier(max_depth=3, learning_rate=0.1,
-    #                         random_state=56, n_jobs=-1))
 
     # #Don't need imputation for TMCQ because I removed NaNs
     # log_reg_clf = LogisticRegression(random_state=56)
