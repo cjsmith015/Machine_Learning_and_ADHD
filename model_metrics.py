@@ -100,7 +100,7 @@ def prep_x_y(df, dataset_type):
         X = df.drop(columns=['DX','DXSUB'])
         y = df['DX'].map({3:1, 1:0})
         return X, y
-    elif dataset_type == 'all_dxsub'
+    elif dataset_type == 'all_dxsub':
         X = df.drop(columns=['DX','DXSUB'])
         y = df['DXSUB']
         return X, y
