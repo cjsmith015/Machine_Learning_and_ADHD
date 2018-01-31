@@ -5,6 +5,8 @@ import itertools, matplotlib
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_samples, silhouette_score
 
+from collections import defaultdict
+
 import matplotlib.pyplot as plt
 plt.style.use('ggplot')
 
@@ -91,3 +93,29 @@ def silhouette_graph(df, axs, max_k=6):
 
         ax.set_yticks([])  # Clear the yaxis labels / ticks
         ax.set_xticks([-0.1, 0, 0.2, 0.4, 0.6, 0.8, 1])
+
+def run_TMCQ_graph(cluster_list, tmcq_cols, tmcq_col_dict, axs,
+                   title_list=['Effortful Control', 'Surgency', 'Negative Emotion', 'Weak Differentiation'],
+                   cluster_labels=['Cluster 0', 'Cluster 1']):
+    tmcq_dict = make_tmcq_dict(title_list, tmcq_cols, cluster_list, cluster_labels)
+    for ax, tmcq_group in zip(axs, title_list):
+        TMCQ_graph(ax, tmcq_dict[tmcq_group], cluster_labels, tmcq_col_dict[tmcq_group])
+        ax.set_title(tmcq_group)
+
+def make_tmcq_dict(title_list, tmcq_cols, cluster_list, cluster_labels):
+    tmcq_dict = defaultdict(dict)
+    for title, cols in zip(title_list, tmcq_cols):
+        for cluster, name in zip(cluster_list, cluster_labels):
+            tmcq_dict[title][name] = np.mean(cluster.loc[:,cols])
+    return tmcq_dict
+
+
+def TMCQ_graph(ax, cluster_dict, cluster_labels, col_labels):
+    ind = range(1, len(col_labels)+1)
+    for name in cluster_labels:
+        ax.scatter(ind, cluster_dict[name].values, label=name, s=75)
+    ax.set_xticks(ind)
+    ax.set_xticklabels(col_labels)
+    ax.set_xlim(0.5, len(col_labels)+0.5)
+    ax.set_ylabel('TMCQ Score')
+    ax.legend(framealpha=True, borderpad=1.0, facecolor="white")
