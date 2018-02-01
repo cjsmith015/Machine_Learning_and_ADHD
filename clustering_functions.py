@@ -4,95 +4,138 @@ import itertools, matplotlib
 
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_samples, silhouette_score
+from sklearn.preprocessing import StandardScaler
 
 from collections import defaultdict
 
 import matplotlib.pyplot as plt
 plt.style.use('ggplot')
 
-def wcss_and_silhouette(df, axs, max_k=11):
-    wcss = np.zeros(max_k)
-    silhouette = np.zeros(max_k)
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
-    for k in range(1, max_k):
-        km = KMeans(k)
-        y = km.fit_predict(df)
+def prep_data(df, dataset):
+    if dataset == 'TMCQ':
+        tmcq_cols = ['Y1_P_TMCQ_ACTIVITY',
+            'Y1_P_TMCQ_AFFIL',
+            'Y1_P_TMCQ_ANGER',
+            'Y1_P_TMCQ_FEAR',
+            'Y1_P_TMCQ_HIP',
+            'Y1_P_TMCQ_IMPULS',
+            'Y1_P_TMCQ_INHIBIT',
+            'Y1_P_TMCQ_SAD',
+            'Y1_P_TMCQ_SHY',
+            'Y1_P_TMCQ_SOOTHE',
+            'Y1_P_TMCQ_ASSERT',
+            'Y1_P_TMCQ_ATTFOCUS',
+            'Y1_P_TMCQ_LIP',
+            'Y1_P_TMCQ_PERCEPT',
+            'Y1_P_TMCQ_DISCOMF',
+            'Y1_P_TMCQ_OPENNESS',
+            'DX']
+        TMCQ = df[tmcq_cols]
+        TMCQ_no_null = TMCQ[TMCQ.isnull().sum(axis=1) == 0]
 
-        for c in range(0, k):
-            for i1, i2 in itertools.combinations([i for i in range(len(y)) if y[i] == c ], 2):
-                wcss[k] += sum(df.iloc[i1,:] - df.iloc[i2,:])**2
-        wcss[k] /= 2
+        TMCQ_no_null_adhd = TMCQ_no_null[TMCQ_no_null['DX'] == 3]
+        TMCQ_no_null_control = TMCQ_no_null[TMCQ_no_null['DX'] == 1]
 
-        if k > 1:
-            silhouette[k] = silhouette_score(df, y)
+        TMCQ_all = TMCQ_no_null.drop(columns='DX')
+        TMCQ_adhd = TMCQ_no_null_adhd.drop(columns='DX')
+        TMCQ_control = TMCQ_no_null_control.drop(columns='DX')
 
-    axs[0].plot(range(1,max_k), wcss[1:max_k], 'o-')
-    axs[0].set_xlabel("number of clusters")
-    axs[0].set_ylabel("within-cluster sum of squares")
+        return TMCQ_all, TMCQ_adhd, TMCQ_control
+    elif dataset == 'neuro':
+        scaler = StandardScaler()
+        neuro_cols = ['STOP_SSRTAVE_Y1',
+                 'DPRIME1_Y1',
+                 'DPRIME2_Y1',
+                 'SSBK_NUMCOMPLETE_Y1',
+                 'SSFD_NUMCOMPLETE_Y1',
+                 'V_Y1',
+                 'Y1_CLWRD_COND1',
+                 'Y1_CLWRD_COND2',
+                 'Y1_DIGITS_BKWD_RS',
+                 'Y1_DIGITS_FRWD_RS',
+                 'Y1_TRAILS_COND2',
+                 'Y1_TRAILS_COND3',
+                 'CW_RES',
+                 'TR_RES',
+                 'Y1_TAP_SD_TOT_CLOCK',
+                 'DX']
+        neuro = df[neuro_cols]
+        neuro_no_null = neuro[neuro.isnull().sum(axis=1) != neuro.shape[1]]
 
-    axs[1].plot(range(1,max_k), silhouette[1:max_k], 'o-')
-    axs[1].set_xlabel("number of clusters")
-    axs[1].set_ylabel("silhouette score")
+        neuro_no_null_adhd = neuro_no_null[neuro_no_null['DX'] == 3]
+        neuro_no_null_control = neuro_no_null[neuro_no_null['DX'] == 1]
 
-def silhouette_graph(df, axs, max_k=6):
-    range_n_clusters = range(2, max_k)
+        neuro_all = neuro_no_null.drop(columns='DX')
+        neuro_all_scaled = neuro_all.copy()
+        neuro_all_scaled.loc[:,:] = scaler.fit_transform
+        neuro_adhd = neuro_no_null_adhd.drop(columns='DX')
+        neuro_control = neuro_no_null_control.drop(columns='DX')
 
-    for n_clusters, ax in zip(range_n_clusters, axs.flatten()):
-        # The silhouette coefficient can range from -1, 1 but in this example all
-        # lie within [-0.1, 1]
-        ax.set_xlim([-0.1, 1])
-        # The (n_clusters+1)*10 is for inserting blank space between silhouette
-        # plots of individual clusters, to demarcate them clearly.
-        ax.set_ylim([0, len(df) + (n_clusters + 1) * 10])
+        return neuro_all, neuro_adhd, neuro_control
 
-        # Initialize the clusterer with n_clusters value and a random generator
-        # seed of 10 for reproducibility.
-        clusterer = KMeans(n_clusters=n_clusters, random_state=10)
-        cluster_labels = clusterer.fit_predict(df)
+def print_ns(full, adhd, control):
+    print('Ns for each group')
+    print('-----------------')
+    for df, name in zip([full, adhd, control], ['All', 'ADHD', 'Control']):
+        print(('{}:\t{}').format(name, df.shape[0]).expandtabs(tabsize=10))
 
-        # The silhouette_score gives the average value for all the samples.
-        # This gives a perspective into the density and separation of the formed
-        # clusters
-        silhouette_avg = silhouette_score(df, cluster_labels)
-        print("For n_clusters =", n_clusters,
-              "The average silhouette_score is :", silhouette_avg)
+def build_piechart(df, data, clf, target, axs,
+                   title_dict = {1.0: 'Control', 3.0: 'ADHD'}):
+    y = clf.fit_predict(df)
+    cluster_df = df.copy()
+    cluster_df['cluster'] = y
 
-        # Compute the silhouette scores for each sample
-        sample_silhouette_values = silhouette_samples(df, cluster_labels)
+    cluster_df[target] = data.loc[df.index,target]
+    class_len_dict = dict(cluster_df[target].value_counts())
+    total_n = sum(class_len_dict.values())
 
-        y_lower = 10
-        for i in range(n_clusters):
-            # Aggregate the silhouette scores for samples belonging to
-            # cluster i, and sort them
-            ith_cluster_silhouette_values = \
-                sample_silhouette_values[cluster_labels == i]
+    cluster_0 = cluster_df[cluster_df['cluster']==0]
+    cluster_1 = cluster_df[cluster_df['cluster']==1]
 
-            ith_cluster_silhouette_values.sort()
+    cluster_0_dict = dict(cluster_0[target].value_counts())
+    cluster_1_dict = dict(cluster_1[target].value_counts())
 
-            size_cluster_i = ith_cluster_silhouette_values.shape[0]
-            y_upper = y_lower + size_cluster_i
+    frac_dict = defaultdict(dict)
+    for dx, n in class_len_dict.items():
+        for cluster_dict, cluster in zip([cluster_0_dict, cluster_1_dict], ['cluster0', 'cluster1']):
+            frac_dict[dx][cluster] = cluster_dict[dx]/class_len_dict[dx]
 
-            color = matplotlib.cm.spectral(float(i) / n_clusters)
-            ax.fill_betweenx(np.arange(y_lower, y_upper),
-                              0, ith_cluster_silhouette_values,
-                              facecolor=color, edgecolor=color, alpha=0.7)
+    for ax, (dx, cluster_dict) in zip(axs, frac_dict.items()):
+        ax.pie(cluster_dict.values(), labels=cluster_dict.keys(), radius=(class_len_dict[dx]/total_n)*2)
+        ax.set_title(title_dict[dx])
 
-            # Label the silhouette plots with their cluster numbers at the middle
-            ax.text(-0.05, y_lower + 0.5 * size_cluster_i, str(i))
+def run_ADHD_Control_k2(df_ADHD, df_control, clf, axs):
+    y_control = clf.fit_predict(df_control)
+    y_adhd = clf.fit_predict(df_ADHD)
 
-            # Compute the new y_lower for next plot
-            y_lower = y_upper + 10  # 10 for the 0 samples
+    cluster_df_control = df_control.copy()
+    cluster_df_control['cluster'] = y_control
+    cluster_df_adhd = df_ADHD.copy()
+    cluster_df_adhd['cluster'] = y_adhd
 
-        ax.set_title(("Silhouette analysis for KMeans clustering on sample data "
-                      "with n_clusters = %d" % n_clusters))
-        ax.set_xlabel("Silhouette coefficient values")
-        ax.set_ylabel("Cluster label")
+    cluster0C = cluster_df_control.loc[cluster_df_control[cluster_df_control['cluster']==0].index,:]
+    cluster1C = cluster_df_control.loc[cluster_df_control[cluster_df_control['cluster']==1].index,:]
+    cluster0A = cluster_df_adhd.loc[cluster_df_adhd[cluster_df_adhd['cluster']==0].index,:]
+    cluster1A = cluster_df_adhd.loc[cluster_df_adhd[cluster_df_adhd['cluster']==1].index,:]
 
-        # The vertical line for average silhoutte score of all the values
-        ax.axvline(x=silhouette_avg, color="red", linestyle="--")
+    effortful_control = ['Y1_P_TMCQ_IMPULS', 'Y1_P_TMCQ_INHIBIT', 'Y1_P_TMCQ_ATTFOCUS']
+    surgency = ['Y1_P_TMCQ_SHY', 'Y1_P_TMCQ_HIP', 'Y1_P_TMCQ_ACTIVITY', 'Y1_P_TMCQ_AFFIL', 'Y1_P_TMCQ_ASSERT']
+    negative_emotion = ['Y1_P_TMCQ_ANGER', 'Y1_P_TMCQ_DISCOMF', 'Y1_P_TMCQ_SOOTHE', 'Y1_P_TMCQ_FEAR', 'Y1_P_TMCQ_SAD']
+    weak_differentiation = ['Y1_P_TMCQ_OPENNESS', 'Y1_P_TMCQ_PERCEPT', 'Y1_P_TMCQ_LIP']
 
-        ax.set_yticks([])  # Clear the yaxis labels / ticks
-        ax.set_xticks([-0.1, 0, 0.2, 0.4, 0.6, 0.8, 1])
+    title_list = ['Effortful Control', 'Surgency', 'Negative Emotion', 'Weak Differentiation']
+    tmcq_cols = [effortful_control, surgency, negative_emotion, weak_differentiation]
+    tmcq_col_dict = {'Effortful Control': ['Impulsivity', 'Inhibition', 'Attentional Focus'],
+                     'Surgency': ['Shy', 'HIP', 'Activity', 'Affil', 'Assert'],
+                     'Negative Emotion': ['Anger', 'Discomf', 'Soothe', 'Fear', 'Sad'],
+                     'Weak Differentiation': ['Openness', 'Percept', 'LIP']}
+    cluster_list = [cluster0A, cluster1A, cluster0C, cluster1C]
+    cluster_labels = ['Cluster 0 ADHD', 'Cluster 1 ADHD', 'Cluster 0 Control', 'Cluster 1 Control']
+
+    run_TMCQ_graph(cluster_list, tmcq_cols, tmcq_col_dict, axs, cluster_labels=cluster_labels)
 
 def run_TMCQ_graph(cluster_list, tmcq_cols, tmcq_col_dict, axs,
                    title_list=['Effortful Control', 'Surgency', 'Negative Emotion', 'Weak Differentiation'],
@@ -114,8 +157,38 @@ def TMCQ_graph(ax, cluster_dict, cluster_labels, col_labels):
     ind = range(1, len(col_labels)+1)
     for name in cluster_labels:
         ax.scatter(ind, cluster_dict[name].values, label=name, s=75)
+        ax.plot(ind, cluster_dict[name].values)
     ax.set_xticks(ind)
     ax.set_xticklabels(col_labels)
     ax.set_xlim(0.5, len(col_labels)+0.5)
     ax.set_ylabel('TMCQ Score')
     ax.legend(framealpha=True, borderpad=1.0, facecolor="white")
+
+def wcss_and_silhouette(df, clf, axs, label, max_k=11, standard_scale=False):
+    wcss = np.zeros(max_k)
+    silhouette = np.zeros(max_k)
+
+    for k in range(1, max_k):
+        if standard_scale:
+            clf.set_params(kmeans__n_clusters=k)
+        else:
+            clf.set_params(n_clusters=k)
+        y = clf.fit_predict(df)
+
+        for c in range(0, k):
+            for i1, i2 in itertools.combinations([i for i in range(len(y)) if y[i] == c ], 2):
+                wcss[k] += sum(df.iloc[i1,:] - df.iloc[i2,:])**2
+        wcss[k] /= 2
+
+        if k > 1:
+            silhouette[k] = silhouette_score(df, y)
+
+    axs[0].plot(range(1,max_k), wcss[1:max_k], 'o-', label=label)
+    axs[0].set_xlabel("number of clusters")
+    axs[0].set_ylabel("within-cluster sum of squares")
+    axs[0].legend(framealpha=True, borderpad=1.0, facecolor="white")
+
+    axs[1].plot(range(1,max_k), silhouette[1:max_k], 'o-', label=label)
+    axs[1].set_xlabel("number of clusters")
+    axs[1].set_ylabel("silhouette score")
+    axs[1].legend(framealpha=True, borderpad=1.0, facecolor="white")
