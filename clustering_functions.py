@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+pd.options.mode.chained_assignment = None
 import itertools, matplotlib
 
 from sklearn.cluster import KMeans
@@ -14,7 +15,7 @@ plt.style.use('ggplot')
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-def prep_data(df, dataset):
+def prep_data(df, dataset, scale='before'):
     if dataset == 'TMCQ':
         tmcq_cols = ['Y1_P_TMCQ_ACTIVITY',
             'Y1_P_TMCQ_AFFIL',
@@ -45,7 +46,6 @@ def prep_data(df, dataset):
 
         return TMCQ_all, TMCQ_adhd, TMCQ_control
     elif dataset == 'neuro':
-        scaler = StandardScaler()
         neuro_cols = ['STOP_SSRTAVE_Y1',
                  'DPRIME1_Y1',
                  'DPRIME2_Y1',
@@ -62,17 +62,20 @@ def prep_data(df, dataset):
                  'TR_RES',
                  'Y1_TAP_SD_TOT_CLOCK',
                  'DX']
+        scaler = StandardScaler()
         neuro = df[neuro_cols]
         neuro_no_null = neuro[neuro.isnull().sum(axis=1) == 0]
+        if scale=='before':
+            neuro_all = neuro_no_null.copy()
+            neuro_all.loc[:,0:-1] = scaler.fit_transform(neuro_no_null.iloc[:,0:-1])
+        else:
+            neuro_all = neuro_no_null.copy()
+        neuro_adhd = neuro_all[neuro_all['DX']==3]
+        neuro_control = neuro_all[neuro_all['DX']==1]
 
-        neuro_no_null_adhd = neuro_no_null[neuro_no_null['DX'] == 3]
-        neuro_no_null_control = neuro_no_null[neuro_no_null['DX'] == 1]
-
-        neuro_all = neuro_no_null.drop(columns='DX')
-        neuro_all_scaled = neuro_all.copy()
-        neuro_all_scaled.loc[:,:] = scaler.fit_transform
-        neuro_adhd = neuro_no_null_adhd.drop(columns='DX')
-        neuro_control = neuro_no_null_control.drop(columns='DX')
+        neuro_all.drop(columns='DX', inplace=True)
+        neuro_adhd.drop(columns='DX', inplace=True)
+        neuro_control.drop(columns='DX', inplace=True)
 
         return neuro_all, neuro_adhd, neuro_control
 
@@ -121,81 +124,97 @@ def run_ADHD_Control_k2(df_ADHD, df_control, clf, axs):
     cluster0A = cluster_df_adhd.loc[cluster_df_adhd[cluster_df_adhd['cluster']==0].index,:]
     cluster1A = cluster_df_adhd.loc[cluster_df_adhd[cluster_df_adhd['cluster']==1].index,:]
 
-    effortful_control = ['Y1_P_TMCQ_IMPULS', 'Y1_P_TMCQ_INHIBIT', 'Y1_P_TMCQ_ATTFOCUS']
-    surgency = ['Y1_P_TMCQ_SHY', 'Y1_P_TMCQ_HIP', 'Y1_P_TMCQ_ACTIVITY', 'Y1_P_TMCQ_AFFIL', 'Y1_P_TMCQ_ASSERT']
-    negative_emotion = ['Y1_P_TMCQ_ANGER', 'Y1_P_TMCQ_DISCOMF', 'Y1_P_TMCQ_SOOTHE', 'Y1_P_TMCQ_FEAR', 'Y1_P_TMCQ_SAD']
-    weak_differentiation = ['Y1_P_TMCQ_OPENNESS', 'Y1_P_TMCQ_PERCEPT', 'Y1_P_TMCQ_LIP']
+    cluster_dict = {
+                    'Cluster 0 ADHD': {'cluster': cluster0A, 'linestyle': 'solid', 'marker': 'o', 'color':'#ff9000'},
+                    'Cluster 1 ADHD': {'cluster': cluster1A, 'linestyle': 'solid', 'marker': 'o', 'color':'#ffbf6d'},
+                    'Cluster 0 Control': {'cluster': cluster0C, 'linestyle': 'dashed', 'marker': '^', 'color':'#30a4e5'},
+                    'Cluster 1 Control': {'cluster': cluster1C, 'linestyle': 'dashed', 'marker': '^', 'color':'#7ebbdd'}
+                    }
 
-    title_list = ['Effortful Control', 'Surgency', 'Negative Emotion', 'Weak Differentiation']
-    tmcq_cols = [effortful_control, surgency, negative_emotion, weak_differentiation]
-    tmcq_col_dict = {'Effortful Control': ['Impulsivity', 'Inhibition', 'Attentional Focus'],
-                     'Surgency': ['Shy', 'HIP', 'Activity', 'Affil', 'Assert'],
-                     'Negative Emotion': ['Anger', 'Discomf', 'Soothe', 'Fear', 'Sad'],
-                     'Weak Differentiation': ['Openness', 'Percept', 'LIP']}
-    cluster_list = [cluster0A, cluster1A, cluster0C, cluster1C]
-    cluster_labels = ['Cluster 0 ADHD', 'Cluster 1 ADHD', 'Cluster 0 Control', 'Cluster 1 Control']
+    tmcq_col_dict = {
+                     'Effortful Control':
+                        {'col_labels': ['Impulsivity', 'Inhibition', 'Attentional Focus'],
+                         'cols': ['Y1_P_TMCQ_IMPULS', 'Y1_P_TMCQ_INHIBIT', 'Y1_P_TMCQ_ATTFOCUS']},
+                     'Surgency':
+                        {'col_labels': ['Shy', 'HIP', 'Activity', 'Affil', 'Assert'],
+                         'cols': ['Y1_P_TMCQ_SHY', 'Y1_P_TMCQ_HIP', 'Y1_P_TMCQ_ACTIVITY', 'Y1_P_TMCQ_AFFIL', 'Y1_P_TMCQ_ASSERT']},
+                     'Negative Emotion':
+                        {'col_labels': ['Anger', 'Discomf', 'Soothe', 'Fear', 'Sad'],
+                         'cols': ['Y1_P_TMCQ_ANGER', 'Y1_P_TMCQ_DISCOMF', 'Y1_P_TMCQ_SOOTHE', 'Y1_P_TMCQ_FEAR', 'Y1_P_TMCQ_SAD']},
+                     'Misc':
+                        {'col_labels': ['Openness', 'Percept', 'LIP'],
+                         'cols': ['Y1_P_TMCQ_OPENNESS', 'Y1_P_TMCQ_PERCEPT', 'Y1_P_TMCQ_LIP']}
+                    }
 
-    run_TMCQ_graph(cluster_list, tmcq_cols, tmcq_col_dict, axs, cluster_labels=cluster_labels)
+    run_TMCQ_graph(cluster_dict, tmcq_col_dict, axs)
 
-def run_TMCQ_graph(cluster_list, tmcq_cols, tmcq_col_dict, axs,
-                   title_list=['Effortful Control', 'Surgency', 'Negative Emotion', 'Weak Differentiation'],
-                   cluster_labels=['Cluster 0', 'Cluster 1']):
-    tmcq_dict = make_tmcq_dict(title_list, tmcq_cols, cluster_list, cluster_labels)
-    for ax, tmcq_group in zip(axs, title_list):
-        TMCQ_graph(ax, tmcq_dict[tmcq_group], cluster_labels, tmcq_col_dict[tmcq_group])
+def run_TMCQ_graph(cluster_dict, tmcq_col_dict, axs):
+    for ax, tmcq_group in zip(axs, tmcq_col_dict.keys()):
+        TMCQ_graph(ax, cluster_dict, tmcq_col_dict[tmcq_group])
         ax.set_title(tmcq_group)
 
-def make_tmcq_dict(title_list, tmcq_cols, cluster_list, cluster_labels):
-    tmcq_dict = defaultdict(dict)
-    for title, cols in zip(title_list, tmcq_cols):
-        for cluster, name in zip(cluster_list, cluster_labels):
-            tmcq_dict[title][name] = np.mean(cluster.loc[:,cols])
-    return tmcq_dict
-
-
-def TMCQ_graph(ax, cluster_dict, cluster_labels, col_labels):
-    ind = range(1, len(col_labels)+1)
-    for name in cluster_labels:
-        ax.scatter(ind, cluster_dict[name].values, label=name, s=75)
-        ax.plot(ind, cluster_dict[name].values)
+def TMCQ_graph(ax, cluster_dict, col_dict):
+    ind = range(1, len(col_dict['cols'])+1)
+    for label in cluster_dict.keys():
+        values = np.mean(cluster_dict[label]['cluster'].loc[:,col_dict['cols']])
+        line = cluster_dict[label]['linestyle']
+        marker = cluster_dict[label]['marker']
+        color = cluster_dict[label]['color']
+        ax.scatter(ind, values.values, label=label, s=75, marker=marker, color=color)
+        ax.plot(ind, values.values, linestyle=line, color=color)
     ax.set_xticks(ind)
-    ax.set_xticklabels(col_labels)
-    ax.set_xlim(0.5, len(col_labels)+0.5)
+    ax.set_xticklabels(col_dict['col_labels'])
+    ax.set_xlim(0.5, len(col_dict['cols'])+0.5)
     ax.set_ylabel('TMCQ Score')
     ax.legend(framealpha=True, borderpad=1.0, facecolor="white")
 
-def run_ADHD_Control_k2_neuro(df_ADHD, df_control, clf, ax):
+def run_ADHD_Control_k2_neuro(df_ADHD, df_control, clf, ax, scale=None):
     y_control = clf.fit_predict(df_control)
     y_adhd = clf.fit_predict(df_ADHD)
 
     cluster_df_control = df_control.copy()
-    cluster_df_control.loc[:,:] = StandardScaler().fit_transform(df_control)
     cluster_df_control['cluster'] = y_control
     cluster_df_adhd = df_ADHD.copy()
-    cluster_df_adhd.loc[:,:] = StandardScaler().fit_transform(df_ADHD)
     cluster_df_adhd['cluster'] = y_adhd
+    if not scale:
+        print(cluster_df_control.shape)
+        cluster_df_control.iloc[:,0:-1] = StandardScaler().fit_transform(cluster_df_control.iloc[:,0:-1])
+        cluster_df_adhd.iloc[:,0:-1] = StandardScaler().fit_transform(cluster_df_adhd.iloc[:,0:-1])
 
     cluster0C = cluster_df_control.loc[cluster_df_control[cluster_df_control['cluster']==0].index,:]
     cluster1C = cluster_df_control.loc[cluster_df_control[cluster_df_control['cluster']==1].index,:]
     cluster0A = cluster_df_adhd.loc[cluster_df_adhd[cluster_df_adhd['cluster']==0].index,:]
     cluster1A = cluster_df_adhd.loc[cluster_df_adhd[cluster_df_adhd['cluster']==1].index,:]
 
-    neuro = ['STOP_SSRTAVE_Y1', 'DPRIME1_Y1', 'DPRIME2_Y1', 'SSBK_NUMCOMPLETE_Y1',
-            'SSFD_NUMCOMPLETE_Y1', 'V_Y1', 'Y1_CLWRD_COND1', 'Y1_CLWRD_COND2',
-            'Y1_DIGITS_BKWD_RS', 'Y1_DIGITS_FRWD_RS', 'Y1_TRAILS_COND2',
-            'Y1_TRAILS_COND3', 'CW_RES', 'TR_RES', 'Y1_TAP_SD_TOT_CLOCK']
+    cluster_dict = {
+                    'Cluster 0 ADHD': {'cluster': cluster0A, 'linestyle': 'solid', 'marker': 'o', 'color':'#ff9000'},
+                    'Cluster 1 ADHD': {'cluster': cluster1A, 'linestyle': 'solid', 'marker': 'o', 'color':'#ffbf6d'},
+                    'Cluster 0 Control': {'cluster': cluster0C, 'linestyle': 'dashed', 'marker': '^', 'color':'#30a4e5'},
+                    'Cluster 1 Control': {'cluster': cluster1C, 'linestyle': 'dashed', 'marker': '^', 'color':'#7ebbdd'}
+                    }
 
-    cluster_list = [cluster0A, cluster1A, cluster0C, cluster1C]
-    cluster_labels = ['Cluster 0 ADHD', 'Cluster 1 ADHD', 'Cluster 0 Control', 'Cluster 1 Control']
+    neuro_col_dict = {'df_cols': ['STOP_SSRTAVE_Y1', 'DPRIME1_Y1', 'DPRIME2_Y1', 'SSBK_NUMCOMPLETE_Y1',
+                      'SSFD_NUMCOMPLETE_Y1', 'V_Y1', 'Y1_CLWRD_COND1', 'Y1_CLWRD_COND2', 'Y1_DIGITS_BKWD_RS',
+                      'Y1_DIGITS_FRWD_RS', 'Y1_TRAILS_COND2', 'Y1_TRAILS_COND3', 'CW_RES', 'TR_RES', 'Y1_TAP_SD_TOT_CLOCK'],
+                      'col_labels': ['Stop Signal RT','CPT DPrime Catch','CPT Dprime Stim','SSpan Backward Items Attempted',
+                      'SSpan Forward Items Attempted','Drift Rate','Color Word: Color Naming (seconds)',
+                      'Color Word: Word Reading (seconds)','Digit Span Forward Raw Score',
+                      'Digit Span Backward Raw Score','Trails Condition 2 Time (seconds)',
+                      'Trails Condition 3 Time (seconds)','Standardized Residual Score - ColorWord',
+                      'Standardized Residual Score - Trails','Tap SD Total Clock']}
 
-    ind = range(1, len(neuro)+1)
+    ind = range(1, len(neuro_col_dict['df_cols'])+1)
 
-    for cluster, name in zip(cluster_list, cluster_labels):
-        ax.scatter(ind, np.mean(cluster.loc[:,neuro]), label=name, s=75)
-        ax.plot(ind, np.mean(cluster.loc[:,neuro]))
+    for label in cluster_dict.keys():
+        values = np.mean(cluster_dict[label]['cluster'].loc[:,neuro_col_dict['df_cols']])
+        line = cluster_dict[label]['linestyle']
+        marker = cluster_dict[label]['marker']
+        color = cluster_dict[label]['color']
+        ax.scatter(ind, values.values, label=label, s=75, marker=marker, color=color)
+        ax.plot(ind, values.values, linestyle=line, color=color)
     ax.set_xticks(ind)
-    ax.set_xticklabels(neuro)
-    ax.set_xlim(0.5, len(neuro)+0.5)
+    ax.set_xticklabels(neuro_col_dict['col_labels'])
+    ax.set_xlim(0.5, len(neuro_col_dict['df_cols'])+0.5)
     for tick in ax.get_xticklabels():
         tick.set_rotation(90)
     ax.legend(framealpha=True, borderpad=1.0, facecolor="white")
