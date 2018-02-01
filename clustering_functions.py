@@ -63,7 +63,7 @@ def prep_data(df, dataset):
                  'Y1_TAP_SD_TOT_CLOCK',
                  'DX']
         neuro = df[neuro_cols]
-        neuro_no_null = neuro[neuro.isnull().sum(axis=1) != neuro.shape[1]]
+        neuro_no_null = neuro[neuro.isnull().sum(axis=1) == 0]
 
         neuro_no_null_adhd = neuro_no_null[neuro_no_null['DX'] == 3]
         neuro_no_null_control = neuro_no_null[neuro_no_null['DX'] == 1]
@@ -164,7 +164,43 @@ def TMCQ_graph(ax, cluster_dict, cluster_labels, col_labels):
     ax.set_ylabel('TMCQ Score')
     ax.legend(framealpha=True, borderpad=1.0, facecolor="white")
 
-def wcss_and_silhouette(df, clf, axs, label, max_k=11, standard_scale=False):
+def run_ADHD_Control_k2_neuro(df_ADHD, df_control, clf, ax):
+    y_control = clf.fit_predict(df_control)
+    y_adhd = clf.fit_predict(df_ADHD)
+
+    cluster_df_control = df_control.copy()
+    cluster_df_control.loc[:,:] = StandardScaler().fit_transform(df_control)
+    cluster_df_control['cluster'] = y_control
+    cluster_df_adhd = df_ADHD.copy()
+    cluster_df_adhd.loc[:,:] = StandardScaler().fit_transform(df_ADHD)
+    cluster_df_adhd['cluster'] = y_adhd
+
+    cluster0C = cluster_df_control.loc[cluster_df_control[cluster_df_control['cluster']==0].index,:]
+    cluster1C = cluster_df_control.loc[cluster_df_control[cluster_df_control['cluster']==1].index,:]
+    cluster0A = cluster_df_adhd.loc[cluster_df_adhd[cluster_df_adhd['cluster']==0].index,:]
+    cluster1A = cluster_df_adhd.loc[cluster_df_adhd[cluster_df_adhd['cluster']==1].index,:]
+
+    neuro = ['STOP_SSRTAVE_Y1', 'DPRIME1_Y1', 'DPRIME2_Y1', 'SSBK_NUMCOMPLETE_Y1',
+            'SSFD_NUMCOMPLETE_Y1', 'V_Y1', 'Y1_CLWRD_COND1', 'Y1_CLWRD_COND2',
+            'Y1_DIGITS_BKWD_RS', 'Y1_DIGITS_FRWD_RS', 'Y1_TRAILS_COND2',
+            'Y1_TRAILS_COND3', 'CW_RES', 'TR_RES', 'Y1_TAP_SD_TOT_CLOCK']
+
+    cluster_list = [cluster0A, cluster1A, cluster0C, cluster1C]
+    cluster_labels = ['Cluster 0 ADHD', 'Cluster 1 ADHD', 'Cluster 0 Control', 'Cluster 1 Control']
+
+    ind = range(1, len(neuro)+1)
+
+    for cluster, name in zip(cluster_list, cluster_labels):
+        ax.scatter(ind, np.mean(cluster.loc[:,neuro]), label=name, s=75)
+        ax.plot(ind, np.mean(cluster.loc[:,neuro]))
+    ax.set_xticks(ind)
+    ax.set_xticklabels(neuro)
+    ax.set_xlim(0.5, len(neuro)+0.5)
+    for tick in ax.get_xticklabels():
+        tick.set_rotation(90)
+    ax.legend(framealpha=True, borderpad=1.0, facecolor="white")
+
+def wcss_and_silhouette(df, clf, axs, label, max_k=6, standard_scale=False):
     wcss = np.zeros(max_k)
     silhouette = np.zeros(max_k)
 
