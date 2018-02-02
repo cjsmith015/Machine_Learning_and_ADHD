@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import scipy.stats as scs
 pd.options.mode.chained_assignment = None
 import itertools, matplotlib
 
@@ -107,7 +108,7 @@ def build_piechart(df, data, clf, target, axs,
             frac_dict[dx][cluster] = cluster_dict[dx]/class_len_dict[dx]
 
     for ax, (dx, cluster_dict) in zip(axs, frac_dict.items()):
-        ax.pie(cluster_dict.values(), labels=cluster_dict.keys(), radius=(class_len_dict[dx]/total_n)*2)
+        ax.pie(cluster_dict.values(), labels=cluster_dict.keys(), radius=(class_len_dict[dx]/total_n)*2, colors=['#ff9000', '#2586bc'])
         ax.set_title(title_dict[dx])
 
 def run_ADHD_Control_k2(df_ADHD, df_control, clf, axs):
@@ -125,10 +126,10 @@ def run_ADHD_Control_k2(df_ADHD, df_control, clf, axs):
     cluster1A = cluster_df_adhd.loc[cluster_df_adhd[cluster_df_adhd['cluster']==1].index,:]
 
     cluster_dict = {
-                    'Cluster 0 ADHD': {'cluster': cluster0A, 'linestyle': 'solid', 'marker': 'o', 'color':'#ff9000'},
-                    'Cluster 1 ADHD': {'cluster': cluster1A, 'linestyle': 'solid', 'marker': 'o', 'color':'#ffbf6d'},
-                    'Cluster 0 Control': {'cluster': cluster0C, 'linestyle': 'dashed', 'marker': '^', 'color':'#30a4e5'},
-                    'Cluster 1 Control': {'cluster': cluster1C, 'linestyle': 'dashed', 'marker': '^', 'color':'#7ebbdd'}
+                    'Cluster 0 ADHD': {'cluster': cluster0A, 'linestyle': 'solid', 'marker': 'o', 'color':'#ff9000', 'mcolor':'#db7b00'},
+                    'Cluster 1 ADHD': {'cluster': cluster1A, 'linestyle': 'solid', 'marker': 'o', 'color':'#ffbf6d', 'mcolor':'#d19c59'},
+                    'Cluster 0 Control': {'cluster': cluster0C, 'linestyle': 'dashed', 'marker': '^', 'color':'#30a4e5', 'mcolor':'#2586bc'},
+                    'Cluster 1 Control': {'cluster': cluster1C, 'linestyle': 'dashed', 'marker': '^', 'color':'#7ebbdd', 'mcolor':'#58839b'}
                     }
 
     tmcq_col_dict = {
@@ -157,11 +158,14 @@ def TMCQ_graph(ax, cluster_dict, col_dict):
     ind = range(1, len(col_dict['cols'])+1)
     for label in cluster_dict.keys():
         values = np.mean(cluster_dict[label]['cluster'].loc[:,col_dict['cols']])
+        sem = scs.sem(cluster_dict[label]['cluster'].loc[:,col_dict['cols']], axis=0)
         line = cluster_dict[label]['linestyle']
         marker = cluster_dict[label]['marker']
         color = cluster_dict[label]['color']
-        ax.scatter(ind, values.values, label=label, s=75, marker=marker, color=color)
-        ax.plot(ind, values.values, linestyle=line, color=color)
+        mcolor = cluster_dict[label]['mcolor']
+        ax.scatter(ind, values.values, label=label, s=75, marker=marker, color=mcolor, zorder=3)
+        ax.errorbar(ind, values.values, yerr=sem, linestyle="None", marker="None", color=color, capsize=6, elinewidth=3, barsabove=False, zorder=2)
+        ax.plot(ind, values.values, linestyle=line, linewidth=2.0, color=color, zorder=1)
     ax.set_xticks(ind)
     ax.set_xticklabels(col_dict['col_labels'])
     ax.set_xlim(0.5, len(col_dict['cols'])+0.5)
@@ -177,7 +181,6 @@ def run_ADHD_Control_k2_neuro(df_ADHD, df_control, clf, ax, scale=None):
     cluster_df_adhd = df_ADHD.copy()
     cluster_df_adhd['cluster'] = y_adhd
     if not scale:
-        print(cluster_df_control.shape)
         cluster_df_control.iloc[:,0:-1] = StandardScaler().fit_transform(cluster_df_control.iloc[:,0:-1])
         cluster_df_adhd.iloc[:,0:-1] = StandardScaler().fit_transform(cluster_df_adhd.iloc[:,0:-1])
 
@@ -187,10 +190,10 @@ def run_ADHD_Control_k2_neuro(df_ADHD, df_control, clf, ax, scale=None):
     cluster1A = cluster_df_adhd.loc[cluster_df_adhd[cluster_df_adhd['cluster']==1].index,:]
 
     cluster_dict = {
-                    'Cluster 0 ADHD': {'cluster': cluster0A, 'linestyle': 'solid', 'marker': 'o', 'color':'#ff9000'},
-                    'Cluster 1 ADHD': {'cluster': cluster1A, 'linestyle': 'solid', 'marker': 'o', 'color':'#ffbf6d'},
-                    'Cluster 0 Control': {'cluster': cluster0C, 'linestyle': 'dashed', 'marker': '^', 'color':'#30a4e5'},
-                    'Cluster 1 Control': {'cluster': cluster1C, 'linestyle': 'dashed', 'marker': '^', 'color':'#7ebbdd'}
+                    'Cluster 0 ADHD': {'cluster': cluster0A, 'linestyle': 'solid', 'marker': 'o', 'color':'#ff9000', 'mcolor':'#db7b00'},
+                    'Cluster 1 ADHD': {'cluster': cluster1A, 'linestyle': 'solid', 'marker': 'o', 'color':'#ffbf6d', 'mcolor':'#d19c59'},
+                    'Cluster 0 Control': {'cluster': cluster0C, 'linestyle': 'dashed', 'marker': '^', 'color':'#30a4e5', 'mcolor':'#2586bc'},
+                    'Cluster 1 Control': {'cluster': cluster1C, 'linestyle': 'dashed', 'marker': '^', 'color':'#7ebbdd', 'mcolor':'#58839b'}
                     }
 
     neuro_col_dict = {'df_cols': ['STOP_SSRTAVE_Y1', 'DPRIME1_Y1', 'DPRIME2_Y1', 'SSBK_NUMCOMPLETE_Y1',
@@ -207,17 +210,22 @@ def run_ADHD_Control_k2_neuro(df_ADHD, df_control, clf, ax, scale=None):
 
     for label in cluster_dict.keys():
         values = np.mean(cluster_dict[label]['cluster'].loc[:,neuro_col_dict['df_cols']])
+        sem = scs.sem(cluster_dict[label]['cluster'].loc[:,neuro_col_dict['df_cols']], axis=0)
         line = cluster_dict[label]['linestyle']
         marker = cluster_dict[label]['marker']
         color = cluster_dict[label]['color']
-        ax.scatter(ind, values.values, label=label, s=75, marker=marker, color=color)
-        ax.plot(ind, values.values, linestyle=line, color=color)
+        mcolor = cluster_dict[label]['mcolor']
+        ax.scatter(ind, values.values, label=label, s=125, marker=marker, color=mcolor, zorder=3)
+        ax.errorbar(ind, values.values, yerr=sem, linestyle="None", marker="None", color=color, capsize=6, elinewidth=3, barsabove=False, zorder=2)
+        ax.plot(ind, values.values, linestyle=line, linewidth=3.0, color=color, zorder=1)
+
     ax.set_xticks(ind)
-    ax.set_xticklabels(neuro_col_dict['col_labels'])
+    ax.set_xticklabels(neuro_col_dict['col_labels'], fontsize=15)
     ax.set_xlim(0.5, len(neuro_col_dict['df_cols'])+0.5)
     for tick in ax.get_xticklabels():
         tick.set_rotation(90)
-    ax.legend(framealpha=True, borderpad=1.0, facecolor="white")
+    ax.legend(framealpha=True, borderpad=1.0, facecolor="white", fontsize=15)
+    ax.tick_params('both', labelsize=15)
 
 def wcss_and_silhouette(df, clf, axs, label, max_k=6, standard_scale=False):
     wcss = np.zeros(max_k)
@@ -242,8 +250,10 @@ def wcss_and_silhouette(df, clf, axs, label, max_k=6, standard_scale=False):
     axs[0].set_xlabel("number of clusters")
     axs[0].set_ylabel("within-cluster sum of squares")
     axs[0].legend(framealpha=True, borderpad=1.0, facecolor="white")
+    axs[0].set_title("WCSS by Varying K")
 
     axs[1].plot(range(1,max_k), silhouette[1:max_k], 'o-', label=label)
     axs[1].set_xlabel("number of clusters")
     axs[1].set_ylabel("silhouette score")
     axs[1].legend(framealpha=True, borderpad=1.0, facecolor="white")
+    axs[1].set_title("Silhouette Score by Varying K")
