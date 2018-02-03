@@ -3,6 +3,26 @@ import numpy as np
 import random
 random.seed(56)
 
+def create_metric_graph(model_dict, metric_dict, axs):
+    for ax, metric in zip(axs, metric_dict.keys()):
+        idx = range(1, len(metric_dict[metric]['col_names'])+1)
+        col_labels = metric_dict[metric]['col_names']
+        df = metric_dict[metric]['dataframe']
+        for model in model_dict.keys():
+            model_idx = model_dict[model]['name']
+            marker = model_dict[model]['marker']
+            color = model_dict[model]['color']
+            line = model_dict[model]['linestyle']
+            values = df.loc[model_idx,col_labels]
+            ax.scatter(idx, values, label=model, s=75, marker=marker, color=color, zorder=2)
+            ax.plot(idx, values, label='_nolegend_', linestyle=line, linewidth=1.5, color=color, zorder=1, alpha=0.5)
+            ax.legend(framealpha=True, borderpad=1.0, facecolor="white")
+        ax.set_xticks(idx)
+        ax.set_xticklabels(col_labels)
+        ax.set_xlim(0.5, len(col_labels)+1)
+        ax.set_ylabel(metric_dict[metric]['ylabel'])
+        ax.set_title(metric_dict[metric]['Title'])
+
 def create_missing_data(df):
     # Drop NaNs
     complete_df = df.dropna()
