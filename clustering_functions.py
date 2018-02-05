@@ -5,10 +5,11 @@ pd.options.mode.chained_assignment = None
 import itertools, matplotlib
 
 from sklearn.cluster import KMeans
-from sklearn.metrics import silhouette_samples, silhouette_score
+from sklearn.metrics import silhouette_samples, silhouette_score, confusion_matrix
 from sklearn.preprocessing import StandardScaler
 
 from collections import defaultdict
+from fancyimpute import MatrixFactorization
 
 import matplotlib.pyplot as plt
 plt.style.use('ggplot')
@@ -17,6 +18,8 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 def prep_data(df, dataset, scale='before'):
+    df_complete = df.copy()
+    df_complete.loc[:,:] = MatrixFactorization().complete(df)
     if dataset == 'TMCQ':
         tmcq_cols = ['Y1_P_TMCQ_ACTIVITY',
             'Y1_P_TMCQ_AFFIL',
@@ -35,8 +38,7 @@ def prep_data(df, dataset, scale='before'):
             'Y1_P_TMCQ_DISCOMF',
             'Y1_P_TMCQ_OPENNESS',
             'DX']
-        TMCQ = df[tmcq_cols]
-        TMCQ_no_null = TMCQ[TMCQ.isnull().sum(axis=1) == 0]
+        TMCQ_no_null = df_complete[tmcq_cols]
 
         TMCQ_no_null_adhd = TMCQ_no_null[TMCQ_no_null['DX'] == 3]
         TMCQ_no_null_control = TMCQ_no_null[TMCQ_no_null['DX'] == 1]
@@ -64,8 +66,7 @@ def prep_data(df, dataset, scale='before'):
                  'Y1_TAP_SD_TOT_CLOCK',
                  'DX']
         scaler = StandardScaler()
-        neuro = df[neuro_cols]
-        neuro_no_null = neuro[neuro.isnull().sum(axis=1) == 0]
+        neuro_no_null = df_complete[neuro_cols]
         if scale=='before':
             neuro_all = neuro_no_null.copy()
             neuro_all.loc[:,0:-1] = scaler.fit_transform(neuro_no_null.iloc[:,0:-1])
@@ -108,7 +109,7 @@ def build_piechart(df, data, clf, target, axs,
             frac_dict[dx][cluster] = cluster_dict[dx]/class_len_dict[dx]
 
     for ax, (dx, cluster_dict) in zip(axs, frac_dict.items()):
-        ax.pie(cluster_dict.values(), labels=cluster_dict.keys(), radius=(class_len_dict[dx]/total_n)*2, colors=['#ff9000', '#2586bc'])
+        ax.pie(cluster_dict.values(), labels=cluster_dict.keys(), radius=(class_len_dict[dx]/total_n)*2, colors=['#ff9000','#2586bc'])
         ax.set_title(title_dict[dx])
 
 def run_ADHD_Control_k2(df_ADHD, df_control, clf, axs, dataset='TMCQ'):
@@ -246,7 +247,7 @@ def run_ADHD_Control_k2_neuro(df_ADHD, df_control, clf, ax, scale=None):
     ax.legend(framealpha=True, borderpad=1.0, facecolor="white", fontsize=15)
     ax.tick_params('both', labelsize=15)
 
-def wcss_and_silhouette(df, clf, axs, label, max_k=6, standard_scale=False):
+def wcss_and_silhouette(df, clf, axs, label, color, max_k=6, standard_scale=False):
     wcss = np.zeros(max_k)
     silhouette = np.zeros(max_k)
 
@@ -265,14 +266,43 @@ def wcss_and_silhouette(df, clf, axs, label, max_k=6, standard_scale=False):
         if k > 1:
             silhouette[k] = silhouette_score(df, y)
 
-    axs[0].plot(range(1,max_k), wcss[1:max_k], 'o-', label=label)
+    axs[0].plot(range(1,max_k), wcss[1:max_k], 'o-', label=label, color=color)
     axs[0].set_xlabel("number of clusters")
     axs[0].set_ylabel("within-cluster sum of squares")
     axs[0].legend(framealpha=True, borderpad=1.0, facecolor="white")
     axs[0].set_title("WCSS by Varying K")
 
-    axs[1].plot(range(1,max_k), silhouette[1:max_k], 'o-', label=label)
+    axs[1].plot(range(1,max_k), silhouette[1:max_k], 'o-', label=label, color=color)
     axs[1].set_xlabel("number of clusters")
     axs[1].set_ylabel("silhouette score")
     axs[1].legend(framealpha=True, borderpad=1.0, facecolor="white")
     axs[1].set_title("Silhouette Score by Varying K")
+
+def combine_datasets(data, clf):
+    neuro_all, neuro_adhd, neuro_control = prep_data(data, dataset='neuro', scale='before')
+    TMCQ_all, TMCQ_adhd, TMCQ_control = prep_data(data, dataset='TMCQ')
+
+    dataset_dict = {'neuro_adhd': {'df': neuro_adhd, 'cluster': 'neuro_cluster'},
+                    'neuro_control':  {'df': neuro_control, 'cluster': 'neuro_cluster'},
+                    'TMCQ_adhd': {'df': TMCQ_adhd, 'cluster': 'TMCQ_cluster'},
+                    'TMCQ_control': {'df': TMCQ_control, 'cluster': 'TMCQ_cluster'}}
+
+    for dataset in dataset_dict.keys():
+        col_name = dataset_dict[dataset]['cluster']
+        df = dataset_dict[dataset]['df']
+        df[col_name] = clf.fit_predict(df)
+        data.loc[df.index,col_name] = df.loc[:,col_name]
+
+    return data[['DX', 'DXSUB', 'neuro_cluster', 'TMCQ_cluster']]
+
+def cluster_matrix(data):
+    adhd_data = data[data['DX'] == 3]
+    control_data = data[data['DX'] == 1]
+
+    adhd_cluster = pd.DataFrame(index=['Neuro Cluster 0', 'Neuro Cluster 1'], columns=['TMCQ Cluster 0', 'TMCQ Cluster 1'])
+    control_cluster = pd.DataFrame(index=['Neuro Cluster 0', 'Neuro Cluster 1'], columns=['TMCQ Cluster 0', 'TMCQ Cluster 1'])
+
+    for df, data in [(adhd_cluster, adhd_data), (control_cluster, control_data)]:
+        df.loc[:,:] = confusion_matrix(data['neuro_cluster'], data['TMCQ_cluster']) / data.shape[0]
+
+    return adhd_cluster, control_cluster
