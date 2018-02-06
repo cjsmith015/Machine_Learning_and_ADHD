@@ -10,6 +10,7 @@ from sklearn.preprocessing import StandardScaler
 
 from collections import defaultdict
 from fancyimpute import MatrixFactorization
+from itertools import combinations
 
 import matplotlib.pyplot as plt
 plt.style.use('ggplot')
@@ -17,11 +18,11 @@ plt.style.use('ggplot')
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-def prep_data(df, dataset, scale='before'):
+def prep_data(df, dataset, scale='before', return_complete=False):
     df_complete = df.copy()
     df_complete.loc[:,:] = MatrixFactorization().complete(df)
     if dataset == 'TMCQ':
-        tmcq_cols = ['Y1_P_TMCQ_ACTIVITY',
+        cols = ['Y1_P_TMCQ_ACTIVITY',
             'Y1_P_TMCQ_AFFIL',
             'Y1_P_TMCQ_ANGER',
             'Y1_P_TMCQ_FEAR',
@@ -38,18 +39,9 @@ def prep_data(df, dataset, scale='before'):
             'Y1_P_TMCQ_DISCOMF',
             'Y1_P_TMCQ_OPENNESS',
             'DX']
-        TMCQ_no_null = df_complete[tmcq_cols]
-
-        TMCQ_no_null_adhd = TMCQ_no_null[TMCQ_no_null['DX'] == 3]
-        TMCQ_no_null_control = TMCQ_no_null[TMCQ_no_null['DX'] == 1]
-
-        TMCQ_all = TMCQ_no_null.drop(columns='DX')
-        TMCQ_adhd = TMCQ_no_null_adhd.drop(columns='DX')
-        TMCQ_control = TMCQ_no_null_control.drop(columns='DX')
-
-        return TMCQ_all, TMCQ_adhd, TMCQ_control
+        dataset_all = df_complete[cols]
     elif dataset == 'neuro':
-        neuro_cols = ['STOP_SSRTAVE_Y1',
+        cols = ['STOP_SSRTAVE_Y1',
                  'DPRIME1_Y1',
                  'DPRIME2_Y1',
                  'SSBK_NUMCOMPLETE_Y1',
@@ -66,20 +58,23 @@ def prep_data(df, dataset, scale='before'):
                  'Y1_TAP_SD_TOT_CLOCK',
                  'DX']
         scaler = StandardScaler()
-        neuro_no_null = df_complete[neuro_cols]
+        dataset = df_complete[cols]
         if scale=='before':
-            neuro_all = neuro_no_null.copy()
-            neuro_all.loc[:,0:-1] = scaler.fit_transform(neuro_no_null.iloc[:,0:-1])
+            dataset_all = dataset.copy()
+            dataset_all.iloc[:,0:-1] = scaler.fit_transform(dataset.iloc[:,0:-1])
         else:
-            neuro_all = neuro_no_null.copy()
-        neuro_adhd = neuro_all[neuro_all['DX']==3]
-        neuro_control = neuro_all[neuro_all['DX']==1]
+            dataset_all = dataset.copy()
+    adhd = dataset_all[dataset_all['DX'] == 3]
+    control = dataset_all[dataset_all['DX'] == 1]
 
-        neuro_all.drop(columns='DX', inplace=True)
-        neuro_adhd.drop(columns='DX', inplace=True)
-        neuro_control.drop(columns='DX', inplace=True)
+    dataset_all.drop(columns='DX', inplace=True)
+    adhd.drop(columns='DX', inplace=True)
+    control.drop(columns='DX', inplace=True)
 
-        return neuro_all, neuro_adhd, neuro_control
+    if return_complete:
+        return dataset_all, adhd, control, df_complete
+    else:
+        return dataset_all, adhd, control
 
 def print_ns(full, adhd, control):
     print('Ns for each group')
@@ -280,7 +275,7 @@ def wcss_and_silhouette(df, clf, axs, label, color, max_k=6, standard_scale=Fals
 
 def combine_datasets(data, clf):
     neuro_all, neuro_adhd, neuro_control = prep_data(data, dataset='neuro', scale='before')
-    TMCQ_all, TMCQ_adhd, TMCQ_control = prep_data(data, dataset='TMCQ')
+    TMCQ_all, TMCQ_adhd, TMCQ_control, full_data = prep_data(data, dataset='TMCQ', return_complete=True)
 
     dataset_dict = {'neuro_adhd': {'df': neuro_adhd, 'cluster': 'neuro_cluster'},
                     'neuro_control':  {'df': neuro_control, 'cluster': 'neuro_cluster'},
@@ -291,9 +286,9 @@ def combine_datasets(data, clf):
         col_name = dataset_dict[dataset]['cluster']
         df = dataset_dict[dataset]['df']
         df[col_name] = clf.fit_predict(df)
-        data.loc[df.index,col_name] = df.loc[:,col_name]
+        full_data.loc[df.index,col_name] = df.loc[:,col_name]
 
-    return data[['DX', 'DXSUB', 'neuro_cluster', 'TMCQ_cluster']]
+    return full_data
 
 def cluster_matrix(data):
     adhd_data = data[data['DX'] == 3]
@@ -306,3 +301,84 @@ def cluster_matrix(data):
         df.loc[:,:] = confusion_matrix(data['neuro_cluster'], data['TMCQ_cluster']) / data.shape[0]
 
     return adhd_cluster, control_cluster
+
+def run_mannwhitneyu_all(df):
+    TMCQ_cols_to_test = {'Y1_P_TMCQ_SHY': 'Shy',
+                    'Y1_P_TMCQ_HIP': 'HIP',
+                    'Y1_P_TMCQ_ACTIVITY': 'Activity',
+                    'Y1_P_TMCQ_AFFIL': 'Affil',
+                    'Y1_P_TMCQ_ASSERT': 'Assert',
+                    'Y1_P_TMCQ_IMPULS': 'Impulsivity',
+                    'Y1_P_TMCQ_INHIBIT': 'Inhibition',
+                    'Y1_P_TMCQ_ATTFOCUS': 'AttFocus',
+                    'Y1_P_TMCQ_ANGER': 'Anger',
+                    'Y1_P_TMCQ_DISCOMF': 'Discomf',
+                    'Y1_P_TMCQ_SOOTHE': 'Soothe',
+                    'Y1_P_TMCQ_FEAR': 'Fear',
+                    'Y1_P_TMCQ_SAD': 'Sad',
+                    'Y1_P_TMCQ_OPENNESS': 'Openness',
+                    'Y1_P_TMCQ_PERCEPT': 'Percept',
+                    'Y1_P_TMCQ_LIP': 'LIP'}
+
+    adhd_tmcq_cluster0 = df[(df['DX'] == 3) & (df['TMCQ_cluster'] == 0)]
+    adhd_tmcq_cluster1 = df[(df['DX'] == 3) & (df['TMCQ_cluster'] == 1)]
+    control_tmcq_cluster0 = df[(df['DX'] == 1) & (df['TMCQ_cluster'] == 0)]
+    control_tmcq_cluster1 = df[(df['DX'] == 1) & (df['TMCQ_cluster'] == 1)]
+
+    TMCQ_dict_of_clusters = {'a_c0': adhd_tmcq_cluster0,
+                        'a_c1': adhd_tmcq_cluster1,
+                        'c_c0': control_tmcq_cluster0,
+                        'c_c1': control_tmcq_cluster1}
+
+    TMCQ_p_val_dict = run_mannwhitney(TMCQ_dict_of_clusters, TMCQ_cols_to_test)
+
+    neuro_cols_to_test = {'Y1_CLWRD_COND1': 'ColorReading',
+                          'Y1_CLWRD_COND2': 'WordNaming',
+                          'Y1_TRAILS_COND2': 'TrailsCond2',
+                          'Y1_TRAILS_COND3': 'TrailsCond3',
+                          'CW_RES': 'StroopCWRes',
+                          'TR_RES': 'TrailsRes',
+                          'STOP_SSRTAVE_Y1': 'StopSignalRT',
+                          'DPRIME1_Y1': 'DPrimeCatch',
+                          'DPRIME2_Y1': 'DPrimeStim',
+                          'V_Y1': 'DriftRate',
+                          'Y1_DIGITS_FRWD_RS': 'DigitSpanForward',
+                          'Y1_DIGITS_BKWD_RS': 'DigitSpanBackward',
+                          'SSFD_NUMCOMPLETE_Y1': 'SSpanForward',
+                          'SSBK_NUMCOMPLETE_Y1': 'SSpanBackward',
+                          'Y1_TAP_SD_TOT_CLOCK': 'TapClockSD'
+                          }
+
+    adhd_neuro_cluster0 = df[(df['DX'] == 3) & (df['neuro_cluster'] == 0)]
+    adhd_neuro_cluster1 = df[(df['DX'] == 3) & (df['neuro_cluster'] == 1)]
+    control_neuro_cluster0 = df[(df['DX'] == 1) & (df['neuro_cluster'] == 0)]
+    control_neuro_cluster1 = df[(df['DX'] == 1) & (df['neuro_cluster'] == 1)]
+
+    neuro_dict_of_clusters = {'a_c0': adhd_neuro_cluster0,
+                        'a_c1': adhd_neuro_cluster1,
+                        'c_c0': control_neuro_cluster0,
+                        'c_c1': control_neuro_cluster1}
+
+    neuro_p_val_dict = run_mannwhitney(neuro_dict_of_clusters, neuro_cols_to_test)
+
+    p_val_dict_all = TMCQ_p_val_dict.copy()
+    p_val_dict_all.update(neuro_p_val_dict)
+
+    p_val_df = pd.DataFrame.from_dict(p_val_dict_all, 'index')
+    p_val_df.rename(index=str, columns={0: "p-val"}, inplace=True)
+    p_val_df.sort_values(by=['p-val'], inplace=True)
+    p_val_df['rank'] = np.arange(1, len(p_val_df)+1)
+    p_val_df['(i/m)Q'] = (p_val_df['rank']/len(p_val_df))*.05
+    p_val_df['sig?'] = (p_val_df['p-val'] < p_val_df['(i/m)Q'])
+    
+    return p_val_df
+
+def run_mannwhitney(dict_of_clusters, cols_to_test):
+    p_val_dict = {}
+    for col in cols_to_test.keys():
+        col_name = cols_to_test[col]
+        combinations = itertools.combinations(dict_of_clusters.keys(), 2)
+        for a, b in combinations:
+            var = a + '_' + b + '_' + col_name
+            p_val_dict[var] = scs.mannwhitneyu(dict_of_clusters[a][col], dict_of_clusters[b][col])[1]
+    return p_val_dict
