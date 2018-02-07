@@ -134,42 +134,32 @@ def prep_x_y(df, target, feature):
     return X_no_null, y_no_null
 
 def prep_clfs(dataset_type):
-    if dataset_type == 'tmcq':
-        log_reg_clf = LogisticRegression(random_state=56)
+    log_reg_clf = make_pipeline(ImputeTransform(strategy=MatrixFactorization()),
+                        LogisticRegression(random_state=56))
 
-        rf_clf = RandomForestClassifier(n_jobs=-1, random_state=56)
+    rf_clf = make_pipeline(ImputeTransform(strategy=MatrixFactorization()),
+                           RandomForestClassifier(n_jobs=-1, random_state=56))
 
-        gb_clf = GradientBoostingClassifier(random_state=56)
+    gb_clf = make_pipeline(ImputeTransform(strategy=MatrixFactorization()),
+                           GradientBoostingClassifier(random_state=56))
 
-        xgb_clf = XGBClassifier(max_depth=3, learning_rate=0.1,
-                        random_state=56)
-    else:
-        log_reg_clf = make_pipeline(ImputeTransform(strategy=MatrixFactorization()),
-                            LogisticRegression(random_state=56))
-
-        rf_clf = make_pipeline(ImputeTransform(strategy=MatrixFactorization()),
-                               RandomForestClassifier(n_jobs=-1, random_state=56))
-
-        gb_clf = make_pipeline(ImputeTransform(strategy=MatrixFactorization()),
-                               GradientBoostingClassifier(random_state=56))
-
-        xgb_clf = make_pipeline(ImputeTransform(strategy=MatrixFactorization()),
-                                XGBClassifier(max_depth=3, learning_rate=0.1,
-                                random_state=56, n_jobs=-1))
-    classifier_list = [log_reg_clf, rf_clf, gb_clf, xgb_clf]
-    return classifier_list
+    xgb_clf = make_pipeline(ImputeTransform(strategy=MatrixFactorization()),
+                            XGBClassifier(max_depth=3, learning_rate=0.1,
+                            random_state=56, n_jobs=-1))
+    classifier_dict = {'LogReg': log_reg_clf,
+                       'RandomForest': rf_clf,
+                       'GradientBoosting': gb_clf,
+                       'XGB': xgb_clf}
+    return classifier_dict
 
 def prep_scoring(dataset_type):
+    scoring_dict = {'accuracy': 'accuracy',
+                    'neg_log_loss': 'neg_log_loss'}
     if dataset_type == 'all_dxsub':
         multiclass_roc = make_scorer(multiclass_roc_auc_score,
                                  greater_is_better=True)
-
-        scoring_dict = {'accuracy': 'accuracy',
-                    'neg_log_loss': 'neg_log_loss',
-                    'roc_auc': multiclass_roc}
-        return scoring_dict
-    else:
-        return ['accuracy', 'roc_auc', 'neg_log_loss']
+        scoring_dict['roc_auc'] = multiclass_roc
+    return scoring_dict
 
 if __name__ == '__main__':
     # run with "python model_metrics.py csv_name target feature"
@@ -185,18 +175,17 @@ if __name__ == '__main__':
     # Prep stuff
     #X, y = prep_x_y(train_data, dataset)
     X, y = prep_x_y(small_data, target, feature)
-    classifier_list = prep_clfs(dataset)
+    classifier_dict = prep_clfs()
     scoring = prep_scoring(dataset)
 
     # Standard across datasets
-    classifier_name = ['LogReg', 'RandomForest', 'GradientBoosting', 'XGB']
     metrics_of_interest = ['fit_time', 'score_time', 'test_accuracy',
                            'test_neg_log_loss', 'test_roc_auc',
                            'train_accuracy', 'train_neg_log_loss',
                            'train_roc_auc']
     # Get metrics
     metric_df = get_metrics(X, y,
-                            classifier_list, classifier_name,
+                            classifier_dict,
                             scoring, metrics_of_interest,
                             n_folds=10)
 
