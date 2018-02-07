@@ -41,12 +41,6 @@ def get_metrics(X, y, clf_dict,
     clf_metrics = _run_clfs(clf_dict,
                             X, y, scoring,
                             n_folds, return_train_score, multiclass)
-    #
-    # clf_metrics_mean = _mean_metrics(clf_metrics)
-    #
-    # metric_df = _create_df(clf_names, metric_df_cols)
-    #
-    # return _fill_df(metric_df, clf_metrics_mean, clf_names, metric_df_cols)
 
     return clf_metrics
 
@@ -61,25 +55,6 @@ def _run_clfs(clf_dict,
                                 return_train_score=True)
         clf_dict[name]['metrics'] = scores
     return clf_dict
-
-def _mean_metrics(clf_dict):
-    """Averages metrics across folds of cross validation"""
-    for clf, dictionary in clf_dict.items():
-        for metric, score in clf_dict[clf].items():
-            clf_dict[clf][metric] = np.mean(score)
-    return clf_dict
-
-def _create_df(clf_names, cols):
-    """Returns empty dataframe with index as classifier names and columns as
-    metrics of interest"""
-    return pd.DataFrame(data=None, index=clf_names, columns=cols)
-
-def _fill_df(df, clf_dict, clf_names, cols):
-    """Fills dataframe with metric scores for each classifier"""
-    for clf in clf_names:
-        for col in cols:
-            df[col].loc[clf] = clf_dict[clf][col]
-    return df
 
 def multiclass_roc_auc_score(truth, pred, average=None):
     """Returns multiclass roc auc score"""
@@ -130,24 +105,38 @@ def prep_x_y(df, target, feature):
            'Y1_TRAILS_COND3', 'CW_RES', 'TR_RES', 'Y1_TAP_SD_TOT_CLOCK']
     X = df[cols]
 
-    X_no_null = X[X.isnull().sum(axis=1) != X.shape[1]]
-    y_no_null = y[X.isnull().sum(axis=1) != X.shape[1]]
+    if feature == 'tmcq':
+        X_no_null = X[X.isnull().sum(axis=1) == 0]
+        y_no_null = y[X.isnull().sum(axis=1) == 0]
+    else:
+        X_no_null = X[X.isnull().sum(axis=1) != X.shape[1]]
+        y_no_null = y[X.isnull().sum(axis=1) != X.shape[1]]
 
     return X_no_null, y_no_null
 
-def prep_clfs():
-    log_reg_clf = make_pipeline(ImputeTransform(strategy=MatrixFactorization()),
-                        LogisticRegression(random_state=56))
+def prep_clfs(feature):
+    if feature == 'tmcq':
+        log_reg_clf = make_pipeline(LogisticRegression(random_state=56))
 
-    rf_clf = make_pipeline(ImputeTransform(strategy=MatrixFactorization()),
-                           RandomForestClassifier(n_jobs=-1, random_state=56))
+        rf_clf = make_pipeline(RandomForestClassifier(n_jobs=-1, random_state=56))
 
-    gb_clf = make_pipeline(ImputeTransform(strategy=MatrixFactorization()),
-                           GradientBoostingClassifier(random_state=56))
+        gb_clf = make_pipeline(GradientBoostingClassifier(random_state=56))
 
-    xgb_clf = make_pipeline(ImputeTransform(strategy=MatrixFactorization()),
-                            XGBClassifier(max_depth=3, learning_rate=0.1,
-                            random_state=56, n_jobs=-1))
+        xgb_clf = make_pipeline(XGBClassifier(max_depth=3, learning_rate=0.1,
+                                random_state=56, n_jobs=-1))
+    else:
+        log_reg_clf = make_pipeline(ImputeTransform(strategy=MatrixFactorization()),
+                            LogisticRegression(random_state=56))
+
+        rf_clf = make_pipeline(ImputeTransform(strategy=MatrixFactorization()),
+                               RandomForestClassifier(n_jobs=-1, random_state=56))
+
+        gb_clf = make_pipeline(ImputeTransform(strategy=MatrixFactorization()),
+                               GradientBoostingClassifier(random_state=56))
+
+        xgb_clf = make_pipeline(ImputeTransform(strategy=MatrixFactorization()),
+                                XGBClassifier(max_depth=3, learning_rate=0.1,
+                                random_state=56, n_jobs=-1))
     classifier_dict = {'LogReg':
                             {'clf': log_reg_clf},
                        'RandomForest':
@@ -184,7 +173,7 @@ if __name__ == '__main__':
     # Prep stuff
     #X, y = prep_x_y(train_data, dataset)
     X, y = prep_x_y(small_data, target, feature)
-    classifier_dict = prep_clfs()
+    classifier_dict = prep_clfs(feature)
     scoring = prep_scoring(target)
 
     # Standard across datasets

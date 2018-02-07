@@ -3,20 +3,24 @@ import pandas as pd
 
 if __name__ == '__main__':
     train_data = pd.read_csv('data/train_data.csv')
-    small_data = train_data.sample(n=200)
+    #small_data = train_data.sample(n=200)
 
-    dataset_dict = {'DX_All':
+    # dataset_dict = {'DX_All':
+    #                     {'target': 'DX',
+    #                      'feature': 'all'},
+    #                 'DXSUB_All':
+    #                     {'target': 'DXSUB',
+    #                      'feature': 'all'},
+    #                 'DX_TMCQ':
+    #                     {'target': 'DX',
+    #                      'feature': 'tmcq'},
+    #                 'DX_Neuro':
+    #                     {'target': 'DX',
+    #                      'feature': 'neuro'}}
+
+    dataset_dict = {'DX_TMCQ':
                         {'target': 'DX',
-                         'feature': 'all'},
-                    'DXSUB_All':
-                        {'target': 'DXSUB',
-                         'feature': 'all'},
-                    'DX_TMCQ':
-                        {'target': 'DX',
-                         'feature': 'tmcq'},
-                    'DX_Neuro':
-                        {'target': 'DX',
-                         'feature': 'neuro'}}
+                         'feature': 'tmcq'}}
 
     # Standard across datasets
     metrics_of_interest = {'ROCAUC': 'test_roc_auc',
@@ -25,19 +29,19 @@ if __name__ == '__main__':
     for dataset in dataset_dict.keys():
         target = dataset_dict[dataset]['target']
         feature = dataset_dict[dataset]['feature']
-        csv_name = 'test/' + dataset + '.csv'
+        csv_name = 'final_csvs/' + dataset + '.csv'
 
         # Prep stuff
         #X, y = prep_x_y(train_data, dataset)
-        X, y = prep_x_y(small_data, target, feature)
-        classifier_dict = prep_clfs()
+        X, y = prep_x_y(train_data, target, feature)
+        classifier_dict = prep_clfs(feature)
         scoring = prep_scoring(target)
 
         # Get metrics
         metric_dict = get_metrics(X, y,
                                 classifier_dict,
                                 scoring, metrics_of_interest,
-                                n_folds=2)
+                                n_folds=10)
 
         # make final dict
         final_dict = {}
