@@ -5,23 +5,19 @@ if __name__ == '__main__':
     train_data = pd.read_csv('data/train_data.csv')
     #small_data = train_data.sample(n=200)
 
-    # dataset_dict = {'DX_All':
-    #                     {'target': 'DX',
-    #                      'feature': 'all'},
-    #                 'DXSUB_All':
-    #                     {'target': 'DXSUB',
-    #                      'feature': 'all'},
-    #                 'DX_TMCQ':
-    #                     {'target': 'DX',
-    #                      'feature': 'tmcq'},
-    #                 'DX_Neuro':
-    #                     {'target': 'DX',
-    #                      'feature': 'neuro'}}
-
-    dataset_dict = {'DX_TMCQ':
+    dataset_dict = {'DX_All':
                         {'target': 'DX',
-                         'feature': 'tmcq'}}
-
+                         'feature': 'all'},
+                    'DXSUB_All':
+                        {'target': 'DXSUB',
+                         'feature': 'all'},
+                    'DX_TMCQ':
+                        {'target': 'DX',
+                         'feature': 'tmcq'},
+                    'DX_Neuro':
+                        {'target': 'DX',
+                         'feature': 'neuro'}}
+                         
     # Standard across datasets
     metrics_of_interest = {'ROCAUC': 'test_roc_auc',
                            'LogLoss': 'test_neg_log_loss'}
