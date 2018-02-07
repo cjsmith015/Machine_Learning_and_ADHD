@@ -16,7 +16,7 @@ from fancyimpute import MatrixFactorization, SimpleFill
 
 from impute_transform import ImputeTransform
 
-def get_metrics(X, y, clf_list, clf_names,
+def get_metrics(X, y, clf_dict,
                     scoring, metric_df_cols,
                     n_folds, return_train_score=True,
                     multiclass=False):
@@ -38,42 +38,28 @@ def get_metrics(X, y, clf_list, clf_names,
     OUTPUTS
     -------
     """
-    clf_metrics = _run_clfs(clf_list, clf_names,
+    clf_metrics = _run_clfs(clf_dict,
                             X, y, scoring,
                             n_folds, return_train_score, multiclass)
+    #
+    # clf_metrics_mean = _mean_metrics(clf_metrics)
+    #
+    # metric_df = _create_df(clf_names, metric_df_cols)
+    #
+    # return _fill_df(metric_df, clf_metrics_mean, clf_names, metric_df_cols)
 
-    clf_metrics_mean = _mean_metrics(clf_metrics)
+    return clf_metrics
 
-    metric_df = _create_df(clf_names, metric_df_cols)
-
-    return _fill_df(metric_df, clf_metrics_mean, clf_names, metric_df_cols)
-
-def multiclass_roc_auc_score(truth, pred, average=None):
-    """Returns multiclass roc auc score"""
-    lb = LabelBinarizer()
-    lb.fit(truth)
-
-    truth = lb.transform(truth)
-    pred = lb.transform(pred)
-
-    # with open('multiclass.txt', 'a') as f:
-    #     data = list(roc_auc_score(truth, pred, average=None))
-    #     data.append(truth.shape[0])
-    #     f.write(str(data))
-    #     f.write('\n')
-
-    return roc_auc_score(truth, pred, average='macro')
-
-def _run_clfs(clf_list, clf_names,
+def _run_clfs(clf_dict,
                 X, y, scoring,
                 n_folds, return_train_score, multiclass):
     """Runs cross validation on classifiers"""
-    clf_dict = {}
-    for clf, name in zip(clf_list, clf_names):
+    for name in clf_dict.keys():
+        clf = clf_dict[name]['clf']
         scores = cross_validate(clf, X, y,
                                 scoring=scoring, cv=n_folds,
                                 return_train_score=True)
-        clf_dict[name] = scores
+        clf_dict[name]['metrics'] = scores
     return clf_dict
 
 def _mean_metrics(clf_dict):
@@ -94,6 +80,22 @@ def _fill_df(df, clf_dict, clf_names, cols):
         for col in cols:
             df[col].loc[clf] = clf_dict[clf][col]
     return df
+
+def multiclass_roc_auc_score(truth, pred, average=None):
+    """Returns multiclass roc auc score"""
+    lb = LabelBinarizer()
+    lb.fit(truth)
+
+    truth = lb.transform(truth)
+    pred = lb.transform(pred)
+
+    # with open('multiclass.txt', 'a') as f:
+    #     data = list(roc_auc_score(truth, pred, average=None))
+    #     data.append(truth.shape[0])
+    #     f.write(str(data))
+    #     f.write('\n')
+
+    return roc_auc_score(truth, pred, average='macro')
 
 def prep_x_y(df, target, feature):
     if target == 'DX':
@@ -146,10 +148,14 @@ def prep_clfs(dataset_type):
     xgb_clf = make_pipeline(ImputeTransform(strategy=MatrixFactorization()),
                             XGBClassifier(max_depth=3, learning_rate=0.1,
                             random_state=56, n_jobs=-1))
-    classifier_dict = {'LogReg': log_reg_clf,
-                       'RandomForest': rf_clf,
-                       'GradientBoosting': gb_clf,
-                       'XGB': xgb_clf}
+    classifier_dict = {'LogReg':
+                            {'clf': log_reg_clf},
+                       'RandomForest':
+                            {'clf': rf_clf},
+                       'GradientBoosting':
+                            {'clf': gb_clf},
+                       'XGB':
+                            {'clf': xgb_clf}}
     return classifier_dict
 
 def prep_scoring(dataset_type):
