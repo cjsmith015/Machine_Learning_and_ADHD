@@ -8,7 +8,7 @@ from sklearn.metrics import roc_auc_score
 from sklearn.pipeline import make_pipeline
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-from sklearn.metrics.scorer import make_scorer
+from sklearn.metrics import make_scorer
 
 from xgboost import XGBClassifier
 
@@ -111,12 +111,12 @@ def prep_x_y(df, target, feature):
            'Y1_P_TMCQ_ATTFOCUS', 'Y1_P_TMCQ_LIP', 'Y1_P_TMCQ_PERCEPT',
            'Y1_P_TMCQ_DISCOMF', 'Y1_P_TMCQ_OPENNESS', 'Y1_P_TMCQ_SURGENCY',
            'Y1_P_TMCQ_EFFCONT', 'Y1_P_TMCQ_NEGAFFECT']
-    elif feature = 'neuro':
+    elif feature == 'neuro':
         cols = ['STOP_SSRTAVE_Y1', 'DPRIME1_Y1', 'DPRIME2_Y1', 'SSBK_NUMCOMPLETE_Y1',
             'SSFD_NUMCOMPLETE_Y1', 'V_Y1', 'Y1_CLWRD_COND1', 'Y1_CLWRD_COND2',
             'Y1_DIGITS_BKWD_RS', 'Y1_DIGITS_FRWD_RS', 'Y1_TRAILS_COND2',
             'Y1_TRAILS_COND3', 'CW_RES', 'TR_RES', 'Y1_TAP_SD_TOT_CLOCK']
-    elif feature = 'all':
+    elif feature == 'all':
         cols = ['Y1_P_TMCQ_ACTIVCONT', 'Y1_P_TMCQ_ACTIVITY', 'Y1_P_TMCQ_AFFIL',
           'Y1_P_TMCQ_ANGER', 'Y1_P_TMCQ_FEAR', 'Y1_P_TMCQ_HIP',
            'Y1_P_TMCQ_IMPULS', 'Y1_P_TMCQ_INHIBIT', 'Y1_P_TMCQ_SAD',
@@ -135,7 +135,7 @@ def prep_x_y(df, target, feature):
 
     return X_no_null, y_no_null
 
-def prep_clfs(dataset_type):
+def prep_clfs():
     log_reg_clf = make_pipeline(ImputeTransform(strategy=MatrixFactorization()),
                         LogisticRegression(random_state=56))
 
@@ -158,31 +158,34 @@ def prep_clfs(dataset_type):
                             {'clf': xgb_clf}}
     return classifier_dict
 
-def prep_scoring(dataset_type):
+def prep_scoring(target):
     scoring_dict = {'accuracy': 'accuracy',
                     'neg_log_loss': 'neg_log_loss'}
-    if dataset_type == 'all_dxsub':
+    if target == 'DXSUB':
         multiclass_roc = make_scorer(multiclass_roc_auc_score,
                                  greater_is_better=True)
         scoring_dict['roc_auc'] = multiclass_roc
+    else:
+        scoring_dict['roc_auc'] = 'roc_auc'
     return scoring_dict
 
 if __name__ == '__main__':
-    # run with "python model_metrics.py csv_name target feature"
+    # run with "python model_metrics.py filename target feature pickle/csv"
     # target can be DX/DXSUB
     # feature can be all, neuro, or tmcq
-    csv_name = sys.argv[1]
+    filename = sys.argv[1]
     target = sys.argv[2]
     feature = sys.argv[3]
+    output = sys.argv[4]
 
     train_data = pd.read_csv('data/train_data.csv')
-    small_data = train_data.sample(n=200)
+    small_data = train_data.sample(n=100)
 
     # Prep stuff
     #X, y = prep_x_y(train_data, dataset)
     X, y = prep_x_y(small_data, target, feature)
     classifier_dict = prep_clfs()
-    scoring = prep_scoring(dataset)
+    scoring = prep_scoring(target)
 
     # Standard across datasets
     metrics_of_interest = ['fit_time', 'score_time', 'test_accuracy',
@@ -190,9 +193,13 @@ if __name__ == '__main__':
                            'train_accuracy', 'train_neg_log_loss',
                            'train_roc_auc']
     # Get metrics
-    metric_df = get_metrics(X, y,
+    metric_dict = get_metrics(X, y,
                             classifier_dict,
                             scoring, metrics_of_interest,
-                            n_folds=10)
+                            n_folds=2)
 
-    metric_df.to_csv(csv_name)
+    # save dict as pickle
+    with open(filename, 'wb') as f:
+        pickle.dump(metric_dict, f)
+
+    # metric_df.to_csv(csv_name)
