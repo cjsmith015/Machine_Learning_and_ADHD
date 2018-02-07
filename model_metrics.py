@@ -56,11 +56,11 @@ def multiclass_roc_auc_score(truth, pred, average=None):
     truth = lb.transform(truth)
     pred = lb.transform(pred)
 
-    with open('multiclass.txt', 'a') as f:
-        data = list(roc_auc_score(truth, pred, average=None))
-        data.append(truth.shape[0])
-        f.write(str(data))
-        f.write('\n')
+    # with open('multiclass.txt', 'a') as f:
+    #     data = list(roc_auc_score(truth, pred, average=None))
+    #     data.append(truth.shape[0])
+    #     f.write(str(data))
+    #     f.write('\n')
 
     return roc_auc_score(truth, pred, average='macro')
 
@@ -95,38 +95,43 @@ def _fill_df(df, clf_dict, clf_names, cols):
             df[col].loc[clf] = clf_dict[clf][col]
     return df
 
-def prep_x_y(df, dataset_type):
-    if dataset_type == 'all_dx':
-        X = df.drop(columns=['DX','DXSUB'])
-        y = df['DX'].map({3:1, 1:0})
-        return X, y
-    elif dataset_type == 'all_dxsub':
-        X = df.drop(columns=['DX','DXSUB'])
-        y = df['DXSUB']
-        return X, y
-    elif dataset_type == 'tmcq':
-        X_TMCQ = df[['Y1_P_TMCQ_ACTIVCONT', 'Y1_P_TMCQ_ACTIVITY', 'Y1_P_TMCQ_AFFIL',
+def prep_x_y(df, target, feature):
+    if target == 'DX':
+        y = df[target].map({3:1, 1:0})
+    else:
+        y = df[target]
+
+    if feature == 'tmcq':
+        cols = ['Y1_P_TMCQ_ACTIVCONT', 'Y1_P_TMCQ_ACTIVITY', 'Y1_P_TMCQ_AFFIL',
           'Y1_P_TMCQ_ANGER', 'Y1_P_TMCQ_FEAR', 'Y1_P_TMCQ_HIP',
            'Y1_P_TMCQ_IMPULS', 'Y1_P_TMCQ_INHIBIT', 'Y1_P_TMCQ_SAD',
            'Y1_P_TMCQ_SHY', 'Y1_P_TMCQ_SOOTHE', 'Y1_P_TMCQ_ASSERT',
            'Y1_P_TMCQ_ATTFOCUS', 'Y1_P_TMCQ_LIP', 'Y1_P_TMCQ_PERCEPT',
            'Y1_P_TMCQ_DISCOMF', 'Y1_P_TMCQ_OPENNESS', 'Y1_P_TMCQ_SURGENCY',
-           'Y1_P_TMCQ_EFFCONT', 'Y1_P_TMCQ_NEGAFFECT']]
-        y = df['DX'].map({3:1, 1:0})
-
-        X_TMCQ_nonull = X_TMCQ[X_TMCQ.isnull().sum(axis=1) == 0]
-        y_TMCQ_nonull = y[X_TMCQ.isnull().sum(axis=1) == 0]
-        return X_TMCQ_nonull, y_TMCQ_nonull
-    elif dataset_type == 'neuro':
-        X_neuro = df[['STOP_SSRTAVE_Y1', 'DPRIME1_Y1', 'DPRIME2_Y1', 'SSBK_NUMCOMPLETE_Y1',
+           'Y1_P_TMCQ_EFFCONT', 'Y1_P_TMCQ_NEGAFFECT']
+    elif feature = 'neuro':
+        cols = ['STOP_SSRTAVE_Y1', 'DPRIME1_Y1', 'DPRIME2_Y1', 'SSBK_NUMCOMPLETE_Y1',
             'SSFD_NUMCOMPLETE_Y1', 'V_Y1', 'Y1_CLWRD_COND1', 'Y1_CLWRD_COND2',
             'Y1_DIGITS_BKWD_RS', 'Y1_DIGITS_FRWD_RS', 'Y1_TRAILS_COND2',
-            'Y1_TRAILS_COND3', 'CW_RES', 'TR_RES', 'Y1_TAP_SD_TOT_CLOCK']]
-        y = df['DX'].map({3:1, 1:0})
+            'Y1_TRAILS_COND3', 'CW_RES', 'TR_RES', 'Y1_TAP_SD_TOT_CLOCK']
+    elif feature = 'all':
+        cols = ['Y1_P_TMCQ_ACTIVCONT', 'Y1_P_TMCQ_ACTIVITY', 'Y1_P_TMCQ_AFFIL',
+          'Y1_P_TMCQ_ANGER', 'Y1_P_TMCQ_FEAR', 'Y1_P_TMCQ_HIP',
+           'Y1_P_TMCQ_IMPULS', 'Y1_P_TMCQ_INHIBIT', 'Y1_P_TMCQ_SAD',
+           'Y1_P_TMCQ_SHY', 'Y1_P_TMCQ_SOOTHE', 'Y1_P_TMCQ_ASSERT',
+           'Y1_P_TMCQ_ATTFOCUS', 'Y1_P_TMCQ_LIP', 'Y1_P_TMCQ_PERCEPT',
+           'Y1_P_TMCQ_DISCOMF', 'Y1_P_TMCQ_OPENNESS', 'Y1_P_TMCQ_SURGENCY',
+           'Y1_P_TMCQ_EFFCONT', 'Y1_P_TMCQ_NEGAFFECT',
+           'STOP_SSRTAVE_Y1', 'DPRIME1_Y1', 'DPRIME2_Y1', 'SSBK_NUMCOMPLETE_Y1',
+           'SSFD_NUMCOMPLETE_Y1', 'V_Y1', 'Y1_CLWRD_COND1', 'Y1_CLWRD_COND2',
+           'Y1_DIGITS_BKWD_RS', 'Y1_DIGITS_FRWD_RS', 'Y1_TRAILS_COND2',
+           'Y1_TRAILS_COND3', 'CW_RES', 'TR_RES', 'Y1_TAP_SD_TOT_CLOCK']
+    X = df[cols]
 
-        X_neuro_nonull = X_neuro[X_neuro.isnull().sum(axis=1) != X_neuro.shape[1]]
-        y_neuro_nonull = y[X_neuro.isnull().sum(axis=1) != X_neuro.shape[1]]
-        return X_neuro_nonull, y_neuro_nonull
+    X_no_null = X[X.isnull().sum(axis=1) != X.shape[1]]
+    y_no_null = y[X.isnull().sum(axis=1) != X.shape[1]]
+
+    return X_no_null, y_no_null
 
 def prep_clfs(dataset_type):
     if dataset_type == 'tmcq':
@@ -167,13 +172,19 @@ def prep_scoring(dataset_type):
         return ['accuracy', 'roc_auc', 'neg_log_loss']
 
 if __name__ == '__main__':
+    # run with "python model_metrics.py csv_name target feature"
+    # target can be DX/DXSUB
+    # feature can be all, neuro, or tmcq
     csv_name = sys.argv[1]
-    dataset = sys.argv[2]
+    target = sys.argv[2]
+    feature = sys.argv[3]
 
     train_data = pd.read_csv('data/train_data.csv')
+    small_data = train_data.sample(n=200)
 
     # Prep stuff
-    X, y = prep_x_y(train_data, dataset)
+    #X, y = prep_x_y(train_data, dataset)
+    X, y = prep_x_y(small_data, target, feature)
     classifier_list = prep_clfs(dataset)
     scoring = prep_scoring(dataset)
 
