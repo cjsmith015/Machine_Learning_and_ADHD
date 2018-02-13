@@ -364,13 +364,8 @@ def run_mannwhitneyu_all(df):
     p_val_dict_all = TMCQ_p_val_dict.copy()
     p_val_dict_all.update(neuro_p_val_dict)
 
-    p_val_df = pd.DataFrame.from_dict(p_val_dict_all, 'index')
-    p_val_df.rename(index=str, columns={0: "p-val"}, inplace=True)
-    p_val_df.sort_values(by=['p-val'], inplace=True)
-    p_val_df['rank'] = np.arange(1, len(p_val_df)+1)
-    p_val_df['(i/m)Q'] = (p_val_df['rank']/len(p_val_df))*.05
-    p_val_df['sig?'] = (p_val_df['p-val'] < p_val_df['(i/m)Q'])
-    
+    p_val_df = make_p_val_df(p_val_dict_all)
+
     return p_val_df
 
 def run_mannwhitney(dict_of_clusters, cols_to_test):
@@ -382,3 +377,13 @@ def run_mannwhitney(dict_of_clusters, cols_to_test):
             var = a + '_' + b + '_' + col_name
             p_val_dict[var] = scs.mannwhitneyu(dict_of_clusters[a][col], dict_of_clusters[b][col])[1]
     return p_val_dict
+
+def make_p_val_df(p_val_dict):
+    p_val_df = pd.DataFrame.from_dict(p_val_dict, 'index')
+    p_val_df.rename(index=str, columns={0: "p-val"}, inplace=True)
+    p_val_df.sort_values(by=['p-val'], inplace=True)
+    p_val_df['rank'] = np.arange(1, len(p_val_df)+1)
+    p_val_df['(i/m)Q'] = (p_val_df['rank']/len(p_val_df))*.05
+    p_val_df['sig?'] = (p_val_df['p-val'] < p_val_df['(i/m)Q'])
+
+    return p_val_df
