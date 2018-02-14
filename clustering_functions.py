@@ -387,3 +387,34 @@ def make_p_val_df(p_val_dict):
     p_val_df['sig?'] = (p_val_df['p-val'] < p_val_df['(i/m)Q'])
 
     return p_val_df
+
+def make_dummy_matrix(df):
+    new_df = df[['DX', 'neuro_cluster', 'TMCQ_cluster']]
+    new_df['DX'] = df['DX'].map({1:'Control', 3:'ADHD'})
+    new_df['neuro_cluster'] = df['neuro_cluster'].map({0: '0N', 1: '1N'})
+    new_df['TMCQ_cluster'] = df['TMCQ_cluster'].map({0: '0T', 1: '1T'})
+    new_df['ClusterID'] = new_df['neuro_cluster'] + '_' + new_df['TMCQ_cluster']
+
+    # split by dx
+    adhd = new_df[new_df['DX'] == 'ADHD']
+    control = new_df[new_df['DX'] == 'Control']
+
+    adhd_dummies = pd.get_dummies(adhd['ClusterID'])
+    control_dummies = pd.get_dummies(control['ClusterID'])
+
+    return adhd_dummies, control_dummies
+
+def run_mannwhitney_clusters(adhd_df, control_df):
+    p_val_dict = {}
+    combos = itertools.combinations(adhd_df.columns, 2)
+    for a, b in combos:
+        var = 'ADHD_' + a + '_' + b
+        p_val_dict[var] = scs.mannwhitneyu(adhd_df[a], adhd_df[b])[1]
+    combos = itertools.combinations(control_df.columns, 2)
+    for a, b in combos:
+        var = 'Control_' + a + '_' + b
+        p_val_dict[var] = scs.mannwhitneyu(adhd_df[a], adhd_df[b])[1]
+
+    p_val_df = make_p_val_df(p_val_dict)
+
+    return p_val_df
