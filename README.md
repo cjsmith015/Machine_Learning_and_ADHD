@@ -145,5 +145,14 @@ To examine this, I looked at confusion matrices for ADHD and Control, and cluste
 Several cluster combo proportions are significantly different when compared to each other. Next steps may involve further identifying these cluster combinations and naming them.
 
 # Built With
+* Python
+* Pandas
+* scikit-learn
+* fancy impute
+* XGBoost
+* Jupyter
+* AWS EC2
 
 # Acknowledgments
+Thank you to the ADHD Research Lab for collaborating with me. 
+Thank you to the invaluable instructors at Galvanize, Inc., for helping me through this project.
