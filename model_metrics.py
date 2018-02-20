@@ -157,38 +157,3 @@ def prep_scoring(target):
     else:
         scoring_dict['roc_auc'] = 'roc_auc'
     return scoring_dict
-
-if __name__ == '__main__':
-    # run with "python model_metrics.py filename target feature pickle/csv"
-    # target can be DX/DXSUB
-    # feature can be all, neuro, or tmcq
-    filename = sys.argv[1]
-    target = sys.argv[2]
-    feature = sys.argv[3]
-    output = sys.argv[4]
-
-    train_data = pd.read_csv('data/train_data.csv')
-    small_data = train_data.sample(n=100)
-
-    # Prep stuff
-    #X, y = prep_x_y(train_data, dataset)
-    X, y = prep_x_y(small_data, target, feature)
-    classifier_dict = prep_clfs(feature)
-    scoring = prep_scoring(target)
-
-    # Standard across datasets
-    metrics_of_interest = ['fit_time', 'score_time', 'test_accuracy',
-                           'test_neg_log_loss', 'test_roc_auc',
-                           'train_accuracy', 'train_neg_log_loss',
-                           'train_roc_auc']
-    # Get metrics
-    metric_dict = get_metrics(X, y,
-                            classifier_dict,
-                            scoring, metrics_of_interest,
-                            n_folds=2)
-
-    # save dict as pickle
-    with open(filename, 'wb') as f:
-        pickle.dump(metric_dict, f)
-
-    # metric_df.to_csv(csv_name)
