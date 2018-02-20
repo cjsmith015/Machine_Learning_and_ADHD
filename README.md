@@ -1,9 +1,9 @@
 # Machine Learning & ADHD
 
-_Christiana Smith - Galvanize, Inc., Data Science, February 2018_
+_Christiana Smith | Galvanize, Inc. | Oregon Health & Science University | February 2018_
 
 # Project Background
-Supervised and unsupervised learning are powerful statistical tools that are surprisingly absent in clinical and psychological research. With this in mind, I collaborated with the **ADHD Research Lab** at the **Oregon Health and Science University** to show what data science can do for their lab and research.
+Supervised and unsupervised learning are powerful statistical tools that are surprisingly absent in clinical and psychological research. With this in mind, I collaborated with the **[ADHD Research Lab](ohsu.edu/adhdrs)** at the Oregon Health and Science University to show what data science can do for their lab and research.
 
 # The Data
 The data is made up of 901 subjects from the first year of a longitudinal study. There are two target variables:
@@ -55,8 +55,15 @@ I examined each variable and concluded none were at risk for data leakage.
 The dataset received from the lab had already been extensively cleaned and verified, so no additional data preparation was required.
 
 ## Model Metrics
+I examined the ROC AUC score and Log Loss of each model, on each dataset.
+I ran Mann-Whitney U tests on each combination of model metric within a dataset, to see if there were any statistically significant differences. I used Benjamini-Hochberg FDR control to deal with the problem of multiple testing.
+
+
 
 ## Conclusions
+Overall, the models are on the same page - with exception of Random Forest in the DXSUB ~ All and DX ~ Neuro dataset.
+
+We can conclude that a logistic regression is sufficient to predict ADHD diagnosis from this dataset, and a more "complex" machine learning model is not necessary.
 
 # Unsupervised Learning
 To answer the question of what sort of characteristics exist in temperament and neurocognitive ability, I performed cluster analysis on the TMCQ and Neuropsych datasets. I took the full dataset, split into TMCQ and Neuropsych features, split those datasets by ADHD and control, and ran k-means (k=2) on each group.
