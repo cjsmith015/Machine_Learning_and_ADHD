@@ -59,6 +59,7 @@ I examined the ROC AUC score and Log Loss of each model, on each dataset.
 I ran Mann-Whitney U tests on each combination of model metric within a dataset, to see if there were any statistically significant differences. I used Benjamini-Hochberg FDR control to deal with the problem of multiple testing.
 
 ![ROC AUC Score](images/ROCAUC.png)
+![Log Loss Score](images/logloss.png)
 
 ## Conclusions
 Overall, the models are on the same page - with exception of Random Forest in the DXSUB ~ All and DX ~ Neuro dataset.
