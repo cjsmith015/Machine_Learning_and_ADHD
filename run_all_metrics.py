@@ -17,7 +17,7 @@ if __name__ == '__main__':
                     'DX_Neuro':
                         {'target': 'DX',
                          'feature': 'neuro'}}
-                         
+
     # Standard across datasets
     metrics_of_interest = {'ROCAUC': 'test_roc_auc',
                            'LogLoss': 'test_neg_log_loss'}
