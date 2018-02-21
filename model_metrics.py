@@ -27,10 +27,9 @@ def get_metrics(X, y, clf_dict,
     ------
     - X: dataframe representing feature matrix for training data
     - y: series representing target for training data
-    - clf_list: list of objects of prepared classifiers
-    - clf_names: strings corresponding to clf_list
-    - scoring: list of strings for sklearn scoring
-    - metric_df_cols: list of strings for desired columns of output DataFrame
+    - clf_dict: dict of list of objects and characteristics of prepared classifiers
+    - scoring: dict of strings and objects for sklearn scoring
+    - metric_df_cols: dict of strings for desired columns of output DataFrame
     - n_folds: int, number of folds for k-fold cross validation
     - return_train_score: bool, returns training score on cv
     - multiclass: bool, whether target has multiple classes
