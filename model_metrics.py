@@ -4,11 +4,10 @@ import pickle, sys
 
 from sklearn.model_selection import cross_validate
 from sklearn.preprocessing import LabelBinarizer
-from sklearn.metrics import roc_auc_score
 from sklearn.pipeline import make_pipeline
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-from sklearn.metrics import make_scorer
+from sklearn.metrics import make_scorer, log_loss, roc_auc_score
 
 from xgboost import XGBClassifier
 
@@ -18,8 +17,9 @@ from impute_transform import ImputeTransform
 
 def get_metrics(X, y, clf_dict,
                     scoring, metric_df_cols,
-                    n_folds, return_train_score=True,
-                    multiclass=False):
+                    X_test, y_test,
+                    cv,
+                    n_folds=10):
     """Runs cross validation to obtain error metrics for several classifiers.
     Outputs a formatted dataframe.
 
@@ -31,21 +31,27 @@ def get_metrics(X, y, clf_dict,
     - scoring: dict of strings and objects for sklearn scoring
     - metric_df_cols: dict of strings for desired columns of output DataFrame
     - n_folds: int, number of folds for k-fold cross validation
-    - return_train_score: bool, returns training score on cv
     - multiclass: bool, whether target has multiple classes
+    - cv: bool, whether to run cross validation
 
     OUTPUTS
     -------
     """
-    clf_metrics = _run_clfs(clf_dict,
-                            X, y, scoring,
-                            n_folds, return_train_score, multiclass)
+    if cv == True:
+        clf_metrics = _run_clfs(clf_dict,
+                                X, y, scoring,
+                                n_folds)
+    else:
+        clf_metrics = _run_train_test(clf_dict,
+                                    X, y,
+                                    X_test, y_test,
+                                    scoring)
 
     return clf_metrics
 
 def _run_clfs(clf_dict,
                 X, y, scoring,
-                n_folds, return_train_score, multiclass):
+                n_folds):
     """Runs cross validation on classifiers"""
     for name in clf_dict.keys():
         clf = clf_dict[name]['clf']
@@ -53,6 +59,20 @@ def _run_clfs(clf_dict,
                                 scoring=scoring, cv=n_folds,
                                 return_train_score=True)
         clf_dict[name]['metrics'] = scores
+    return clf_dict
+
+def _run_train_test(clf_dict,
+                    X_train, y_train,
+                    X_test, y_test,
+                    scoring):
+    for name in clf_dict.keys():
+        clf_metric_dict = {}
+        clf = clf_dict[name]['clf']
+        clf.fit(X_train, y_train)
+        y_pred_proba = clf.predict_proba(X_test)
+        clf_metric_dict['test_neg_log_loss'] = log_loss(y_test, y_pred_proba)
+        clf_metric_dict['test_roc_auc'] = roc_auc_score(pd.get_dummies(y_test), y_pred_proba)
+        clf_dict[name]['metrics'] = clf_metric_dict
     return clf_dict
 
 def multiclass_roc_auc_score(truth, pred, average=None):
